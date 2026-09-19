@@ -1,0 +1,68 @@
+# OOMFS.ORG Architecture & Page Context Index
+
+Welcome to the **OOMFS Territory Conquest & Follower Sphere Map** codebase context suite. This index is optimized for **fresh AI agent and developer onboarding**. It provides an authoritative overview of system architecture, state management, 3D WebGL rendering, and page-specific specifications.
+
+---
+
+## 🌟 Core System Architecture
+
+**OOMFS** maps social relationships, mutual follower network connections, and weighted community contributions onto a 100% native 3D WebGL sphere globe.
+
+- **Frontend Engine**: React 18 + TypeScript (Strict Mode) + Vite 5 + Tailwind CSS
+- **3D WebGL Graphics**: Three.js (`SphereGeometry`, `CanvasTexture`, `PerspectiveCamera`, `OrbitControls`, `Raycaster`)
+- **Canvas Resolution**: $4096 \times 2048$ (4K 2:1 globe texture canvas with `THREE.SRGBColorSpace`)
+- **Rendering Shading**: Unlit `THREE.MeshBasicMaterial` + `THREE.NoToneMapping` for 100% pixel-perfect raw RGB color accuracy matching uploaded source images.
+
+---
+
+## 🗺️ Multi-Page Navigation Sitemap
+
+The top navigation header ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)) provides left-to-right tab routing:
+
+```
+                                  ┌───────────────────────────────┐
+                                  │    Top Header: oomfs.org      │
+                                  └───────────────┬───────────────┘
+                                                  │
+        ┌──────────────────┬──────────────────────┼──────────────────────┐
+  ┌─────▼─────┐     ┌──────▼──────┐        ┌──────▼──────┐        ┌──────▼──────┐
+  │ oomfs.org │     │ Map         │        │ Sphere      │        │ My Profile  │
+  │ Code      │     │ (3D Sphere  │        │ Owner       │        │ (Member     │
+  │ Galaxy    │     │ Map Canvas) │        │ Profile     │        │ Profile)    │
+  └───────────┘     └─────────────┘        └─────────────┘        └─────────────┘
+```
+
+---
+
+## 📂 Page Context Document Suite
+
+Read the dedicated page specs below for full component contracts, state flow, and extension guidelines:
+
+| Page View | Component File | Description & Specifications |
+| :--- | :--- | :--- |
+| **3D Sphere Map** | [MapCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MapCanvas.tsx) | Core interactive 3D WebGL sphere canvas, zero-sum area sliders, 1-per-tile custom images, and region inspector. See [3D_SPHERE_MAP_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/3D_SPHERE_MAP_PAGE.md). |
+| **Code Galaxy** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Top-left `oomfs.org` brand destination. Network-level 3D constellation ($N=5,240+$ follower nodes, 128 spheres). See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
+| **Sphere Owner** | [SphereOwnerPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereOwnerPage.tsx) | Dedicated profile page for the permanent Sphere Host (`@oomf_architect`, 512-tile grid host, master node anchor). See [SPHERE_OWNER_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_OWNER_PAGE.md). |
+| **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Page-sized account profile manager for registered user accounts (`@username`). Features bio text editor, Twitter handle reservation, dynamic native aspect-ratio carousels, and lightbox modal. See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
+
+---
+
+## 🛠 Critical Code Invariants for AI Agents
+
+When modifying or extending this codebase, adhere strictly to these rules:
+
+1. **Exact Quota Allocation**:
+   - Discrete 3D tile quotas $T_u$ MUST sum to exactly 512 tiles across active user accounts.
+   - Quotas are computed in `generateClusteredPartitions` in [partitionEngine.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/partitionEngine.ts) using Hamilton's Largest Remainder Method.
+
+2. **100% Raw Image Brightness & Color Space**:
+   - `texture.colorSpace` MUST be explicitly set to `THREE.SRGBColorSpace`.
+   - `renderer.toneMapping` MUST be set to `THREE.NoToneMapping` (prevents filmic curve dimming).
+   - Mesh material MUST use `THREE.MeshBasicMaterial` (unlit) to eliminate directional light shadows over tile textures.
+
+3. **Account & Partition Separation**:
+   - 3D globe partition tiles on the map canvas are strictly territory allocations.
+   - Profile pages are strictly account-level (`UserProfile`) accessed via the "My Profile" tab or UserMenu dropdown.
+
+4. **Build Verification**:
+   - Always run `npx tsc --noEmit` and verify clean execution before concluding work.

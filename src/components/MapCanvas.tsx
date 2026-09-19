@@ -1,0 +1,297 @@
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { MapSettings, Region, UserAccount } from '../types/map';
+import { drawRegionTexture } from '../utils/partitionEngine';
+
+interface MapCanvasProps {
+  settings: MapSettings;
+  users: UserAccount[];
+  tiles: Region[];
+  onSelectUser: (id: number | null) => void;
+  onHoverUser: (id: number | null) => void;
+}
+
+export const MapCanvas: React.FC<MapCanvasProps> = ({
+  settings,
+  users,
+  tiles,
+  onSelectUser,
+  onHoverUser,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
+  const textureRef = useRef<THREE.CanvasTexture | null>(null);
+
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const mouseRef = useRef(new THREE.Vector2());
+
+  // Mutable ref for settings so animation loop always reads latest state
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  const atmosphereRef = useRef<THREE.Mesh | null>(null);
+
+  // 1. Initialize Native 3D Three.js Globe Scene
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const width = containerRef.current.clientWidth;
+    const height = containerRef.current.clientHeight;
+
+    // Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(settings.theme === 'minimal' ? '#0f172a' : '#080c16');
+    sceneRef.current = scene;
+
+    // 3D Perspective Camera
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 0, 6.5);
+    cameraRef.current = camera;
+
+    // WebGL Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NoToneMapping;
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // Full 3D Orbit Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxDistance = 15;
+    controls.minDistance = 2.4;
+    controls.rotateSpeed = 0.8;
+    controlsRef.current = controls;
+
+    // 3D Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    scene.add(ambientLight);
+
+    // Initial Texture (4K Resolution for Sharp Crisp Tile Images)
+    const initialCanvas = drawRegionTexture(
+      users,
+      tiles,
+      4096,
+      2048,
+      settings.hoveredUserId,
+      settings.selectedUserId,
+      settings.theme,
+      settings.showGrid
+    );
+    const texture = new THREE.CanvasTexture(initialCanvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    textureRef.current = texture;
+
+    // Create Native 3D Globe Mesh Geometry
+    const radius = 2.0;
+    const geometry = new THREE.SphereGeometry(radius, 120, 60);
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    meshRef.current = mesh;
+
+    // Atmosphere Outer Glow Shell (Additive Blending prevents darkening/dimming of globe textures)
+    const atmosphereGeo = new THREE.SphereGeometry(radius * 1.04, 64, 32);
+    const atmosphereMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.15,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.BackSide,
+    });
+    const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
+    atmosphere.visible = settings.showAtmosphere;
+    scene.add(atmosphere);
+    atmosphereRef.current = atmosphere;
+
+    // Starfield Particle System
+    const particleGeo = new THREE.BufferGeometry();
+    const particleCount = 1500;
+    const posArray = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 90;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.15,
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.45,
+    });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+
+    // Resize Handler
+    const handleResize = () => {
+      if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w = containerRef.current.clientWidth;
+      const h = containerRef.current.clientHeight;
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Animation Loop
+    let animationFrameId: number;
+
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate);
+
+      const currentSettings = settingsRef.current;
+
+      // Auto Rotation
+      if (currentSettings.autoRotate && meshRef.current) {
+        meshRef.current.rotation.y += 0.003;
+      }
+
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+      if (rendererRef.current && rendererRef.current.domElement) {
+        rendererRef.current.domElement.remove();
+      }
+    };
+  }, []);
+
+  // 2. Update Canvas Texture when users, tiles, selection, hover, theme, or grid toggles
+  useEffect(() => {
+    if (!textureRef.current) return;
+
+    const handleImageLoaded = () => {
+      if (textureRef.current) {
+        textureRef.current.image = drawRegionTexture(
+          users,
+          tiles,
+          4096,
+          2048,
+          settings.hoveredUserId,
+          settings.selectedUserId,
+          settings.theme,
+          settings.showGrid
+        );
+        textureRef.current.needsUpdate = true;
+      }
+    };
+
+    const newCanvas = drawRegionTexture(
+      users,
+      tiles,
+      4096,
+      2048,
+      settings.hoveredUserId,
+      settings.selectedUserId,
+      settings.theme,
+      settings.showGrid,
+      handleImageLoaded
+    );
+
+    textureRef.current.image = newCanvas;
+    textureRef.current.needsUpdate = true;
+  }, [users, tiles, settings.hoveredUserId, settings.selectedUserId, settings.theme, settings.showGrid]);
+
+  // 3. Theme Background & Atmosphere visibility update
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.background = new THREE.Color(settings.theme === 'minimal' ? '#0f172a' : '#080c16');
+    }
+    if (atmosphereRef.current) {
+      atmosphereRef.current.visible = settings.showAtmosphere;
+    }
+  }, [settings.theme, settings.showAtmosphere]);
+
+  // 4. Pointer Raycasting on Native 3D Sphere Surface
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!containerRef.current || !cameraRef.current || !meshRef.current || tiles.length === 0) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    mouseRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+    const intersects = raycasterRef.current.intersectObject(meshRef.current);
+
+    if (intersects.length > 0 && intersects[0].uv) {
+      const uv = intersects[0].uv;
+      const u = uv.x;
+      const v = 1.0 - uv.y;
+
+      const foundTile = findTileByUV(u, v, tiles);
+      if (foundTile) {
+        onHoverUser(foundTile.ownerUserId);
+        return;
+      }
+    }
+
+    onHoverUser(null);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!containerRef.current || !cameraRef.current || !meshRef.current || tiles.length === 0) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    mouseRef.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseRef.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+    const intersects = raycasterRef.current.intersectObject(meshRef.current);
+
+    if (intersects.length > 0 && intersects[0].uv) {
+      const uv = intersects[0].uv;
+      const u = uv.x;
+      const v = 1.0 - uv.y;
+
+      const foundTile = findTileByUV(u, v, tiles);
+      if (foundTile) {
+        onSelectUser(foundTile.ownerUserId === settings.selectedUserId ? null : foundTile.ownerUserId);
+        return;
+      }
+    }
+
+    onSelectUser(null);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 z-0 w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
+      onPointerMove={handlePointerMove}
+      onClick={handleClick}
+    />
+  );
+};
+
+function findTileByUV(u: number, v: number, tiles: Region[]): Region | null {
+  for (const tile of tiles) {
+    const [[u0, v0], [u1, _1], [_2, v1]] = tile.polygonUV;
+    if (u >= u0 && u <= u1 && v >= v0 && v <= v1) {
+      return tile;
+    }
+  }
+  return null;
+}
