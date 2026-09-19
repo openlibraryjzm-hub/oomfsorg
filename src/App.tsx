@@ -318,13 +318,8 @@ export const App: React.FC = () => {
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        settings={settings}
-        userCount={users.filter((u: UserAccount) => !u.isSystemReserved).length}
-        tileCount={tiles.length}
-        onToggleRightPanel={() =>
-          setSettings(prev => ({ ...prev, showRightPanel: !prev.showRightPanel }))
-        }
         user={currentUser}
+        activeSphereOwnerName={activeSphere?.ownerName}
         onOpenAuthModal={handleOpenAuthModal}
         onSignOut={handleSignOut}
         onViewMyProfile={handleViewMyProfile}
@@ -392,6 +387,7 @@ export const App: React.FC = () => {
             currentUser={currentUser}
             onGoToMap={() => setActiveTab('map')}
             onOpenAuthModal={handleOpenAuthModal}
+            onSignOut={handleSignOut}
           />
         </div>
       )}

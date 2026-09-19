@@ -17,33 +17,34 @@ Welcome to the **OOMFS Territory Conquest & Follower Sphere Map** codebase conte
 
 ## 🗺️ Multi-Page Navigation Sitemap
 
-The top navigation header ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)) provides left-to-right tab routing:
+The top navigation header ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)) provides frameless URL-style routing:
 
 ```
-                                  ┌───────────────────────────────┐
-                                  │    Top Header: oomfs.org      │
-                                  └───────────────┬───────────────┘
-                                                  │
-        ┌──────────────────┬──────────────────────┼──────────────────────┐
-  ┌─────▼─────┐     ┌──────▼──────┐        ┌──────▼──────┐        ┌──────▼──────┐
-  │ oomfs.org │     │ Map         │        │ Sphere      │        │ My Profile  │
-  │ Code      │     │ (3D Sphere  │        │ Owner       │        │ (Member     │
-  │ Galaxy    │     │ Map Canvas) │        │ Profile     │        │ Profile)    │
-  └───────────┘     └─────────────┘        └─────────────┘        └─────────────┘
+                            ┌──────────────────────────────────────┐
+                            │ Top Header: oomfs.org/{owner}        │
+                            └──────────────────┬───────────────────┘
+                                               │
+                       ┌───────────────────────┴───────────────────────┐
+                 ┌─────▼─────┐                                   ┌─────▼─────┐
+                 │ oomfs.org/│                                   │ {owner}   │
+                 │ Code      │                                   │ Member    │
+                 │ Galaxy    │                                   │ Profile   │
+                 └───────────┘                                   └───────────┘
 ```
 
 ---
 
-## 📂 Page Context Document Suite
+## 📂 Page & Component Context Document Suite
 
-Read the dedicated page specs below for full component contracts, state flow, and extension guidelines:
+Read the dedicated context specs below for full component contracts, state flow, and extension guidelines:
 
-| Page View | Component File | Description & Specifications |
+| Page / Component | Component File | Description & Specifications |
 | :--- | :--- | :--- |
+| **Header Navigation Bar** | [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx) | Sleek minimalist `oomfs.org/{owner}` brand URL navigation, dual-segment routing, and active-tab toggle logic. See [HEADER_NAVBAR.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/HEADER_NAVBAR.md). |
 | **3D Sphere Map** | [MapCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MapCanvas.tsx) | Core interactive 3D WebGL sphere canvas, zero-sum area sliders, 1-per-tile custom images, and region inspector. See [3D_SPHERE_MAP_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/3D_SPHERE_MAP_PAGE.md). |
 | **Code Galaxy** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Top-left `oomfs.org` brand destination. Network-level 3D constellation ($N=5,240+$ follower nodes, 128 spheres). See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
 | **Sphere Owner** | [SphereOwnerPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereOwnerPage.tsx) | Dedicated profile page for the permanent Sphere Host (`@oomf_architect`, 512-tile grid host, master node anchor). See [SPHERE_OWNER_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_OWNER_PAGE.md). |
-| **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Page-sized account profile manager for registered user accounts (`@username`). Features bio text editor, Twitter handle reservation, dynamic native aspect-ratio carousels, and lightbox modal. See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
+| **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Page-sized account profile manager for registered user accounts (`@username`). Features bio text editor, Twitter handle reservation, dynamic native aspect-ratio carousels, and auth action buttons. See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
 
 ---
 

@@ -45,7 +45,7 @@ OOMFS ORG/
 │   ├── components/
 │   │   ├── AuthModal.tsx            # Glassmorphism tabbed login & account creation modal
 │   │   ├── UserMenu.tsx             # Top-right navigation avatar pill & dropdown widget
-│   │   ├── Header.tsx               # Top navigation bar, brand link, "My Profile" tab, and UserMenu
+│   │   ├── Header.tsx               # Frameless oomfs.org/{owner} top navigation bar & active-tab toggle router
 │   │   ├── MapCanvas.tsx            # Three.js 3D WebGL Canvas, lighting, orbit controls & raycasting
 │   │   ├── RightDockPanel.tsx       # Unified 3-Tab Control & Inspector Dock with View-Only Lock Banner
 │   │   ├── CodeGalaxyPage.tsx       # Network 3D Galaxy View HUD overlay, creator badges, & creation modal

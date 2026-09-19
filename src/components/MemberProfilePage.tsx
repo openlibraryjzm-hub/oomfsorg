@@ -15,19 +15,24 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
-  UserCheck
+  UserCheck,
+  LogIn,
+  LogOut,
+  UserPlus,
 } from 'lucide-react';
 
 interface MemberProfilePageProps {
   currentUser: UserProfile | null;
   onGoToMap: () => void;
   onOpenAuthModal?: (mode: AuthModalMode) => void;
+  onSignOut?: () => void;
 }
 
 export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   currentUser,
   onGoToMap,
   onOpenAuthModal,
+  onSignOut,
 }) => {
   const [profile, setProfile] = useState<UserProfile | null>(currentUser);
 
@@ -198,18 +203,28 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
           <p className="text-xs text-slate-400 font-medium leading-relaxed">
             Log in or register an account to manage your profile, customize your bio, and add showcase carousels.
           </p>
-          <div className="flex items-center gap-2 justify-center mt-2">
+          <div className="flex items-center gap-2.5 justify-center mt-2 flex-wrap">
             {onOpenAuthModal && (
-              <button
-                onClick={() => onOpenAuthModal('login')}
-                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition-all shadow-md shadow-cyan-600/30"
-              >
-                Log In / Register
-              </button>
+              <>
+                <button
+                  onClick={() => onOpenAuthModal('login')}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-600/30"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Log In</span>
+                </button>
+                <button
+                  onClick={() => onOpenAuthModal('register')}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Register</span>
+                </button>
+              </>
             )}
             <button
               onClick={onGoToMap}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all"
             >
               Return to Map
             </button>
@@ -311,13 +326,25 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onGoToMap}
-            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30 self-stretch sm:self-auto justify-center"
-          >
-            <span>Return to 3D Sphere Map</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-end flex-wrap">
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/80 border border-slate-800 hover:border-rose-900/60 text-slate-300 hover:text-rose-300 font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+                title="Sign out of account"
+              >
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>Sign Out</span>
+              </button>
+            )}
+            <button
+              onClick={onGoToMap}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30"
+            >
+              <span>Return to 3D Sphere Map</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Member Bio / Description Section */}
