@@ -65,30 +65,10 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
   const handleTwitterOOMFCreate = async () => {
     setIsSyncingTwitter(true);
     try {
-      // 1. Check if an active Twitter OAuth session exists
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session && session.provider_token) {
-        const sphere = await handleTwitterOauthCallback(session);
-        if (sphere) {
-          onCreateSphere(sphere);
-          setSelectedSphereId(sphere.id);
-          setIsCreateModalOpen(false);
-          return;
-        }
-      }
-
-      // 2. Set flag and trigger real Twitter/X OAuth redirect
       localStorage.setItem('oomfs_pending_twitter_sync', 'true');
       await signInWithTwitterOAuth();
     } catch (err) {
       console.error('Failed to execute Twitter OAuth redirect:', err);
-      // Fallback preview
-      const fallbackSphere = await handleTwitterOauthCallback(null);
-      if (fallbackSphere) {
-        onCreateSphere(fallbackSphere);
-        setIsCreateModalOpen(false);
-      }
     } finally {
       setIsSyncingTwitter(false);
     }

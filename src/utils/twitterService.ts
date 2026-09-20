@@ -8,35 +8,100 @@ export interface OOMFUser {
   profileImageUrl: string;
 }
 
+function generateRandomString(length: number): string {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let text = '';
+  if (typeof window !== 'undefined' && window.crypto) {
+    const values = new Uint8Array(length);
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < length; i++) {
+      text += possible[values[i] % possible.length];
+    }
+  } else {
+    for (let i = 0; i < length; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+  }
+  return text;
+}
+
+async function sha256(plain: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return window.crypto.subtle.digest('SHA-256', data);
+}
+
+function base64urlencode(a: ArrayBuffer): string {
+  let str = '';
+  const bytes = new Uint8Array(a);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    str += String.fromCharCode(bytes[i]);
+  }
+  return btoa(str)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+export async function generatePKCE() {
+  const verifier = generateRandomString(64);
+  const hashed = await sha256(verifier);
+  const challenge = base64urlencode(hashed);
+  return { verifier, challenge };
+}
+
 /**
- * Trigger Twitter/X OAuth 2.0 PKCE authentication via Supabase Auth or direct Twitter OAuth 2.0
+ * Trigger Twitter/X OAuth authentication via Supabase Auth Provider (handles server-side token exchange without CORS)
  */
 export async function signInWithTwitterOAuth() {
-  const env = (import.meta as any).env || {};
-  const clientId = env.VITE_TWITTER_CLIENT_ID || 'QjdaZEFNbDh2QU5vOHZLaU13QjE6MTpjaQ';
   const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:3000/';
 
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+  // 1. Try Supabase 'x' provider with skipBrowserRedirect
+  let res = await supabase.auth.signInWithOAuth({
+    provider: 'x' as any,
+    options: {
+      redirectTo: redirectUri,
+      scopes: 'users.read follows.read tweet.read offline.access',
+      skipBrowserRedirect: true,
+    },
+  });
+
+  // 2. If 'x' provider fails or has no URL, try 'twitter' provider
+  if (res.error || !res.data?.url) {
+    res = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
       options: {
         redirectTo: redirectUri,
-        scopes: 'users.read follows.read',
+        scopes: 'users.read follows.read tweet.read offline.access',
+        skipBrowserRedirect: true,
       },
     });
-
-    if (error) {
-      console.warn('Supabase Auth Twitter provider error, switching to direct Twitter OAuth 2.0 PKCE:', error.message);
-    } else if (data?.url) {
-      return data;
-    }
-  } catch (err) {
-    console.warn('Supabase OAuth error, using direct Twitter OAuth 2.0 PKCE:', err);
   }
 
-  // Fallback: Direct Twitter/X OAuth 2.0 authorize URL (bypasses Supabase 400 provider validation errors)
-  const twitterAuthUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=users.read%20follows.read%20tweet.read&state=oomfs_sync&code_challenge=challenge&code_challenge_method=plain`;
+  // 3. If Supabase provider returns a valid authorization URL, navigate to it
+  if (res.data?.url) {
+    if (typeof window !== 'undefined') {
+      window.location.href = res.data.url;
+    }
+    return res.data;
+  }
 
+  // 4. Direct Twitter/X OAuth 2.0 PKCE fallback
+  console.warn('Supabase Twitter OAuth provider unavailable, executing direct PKCE:', res.error);
+  const env = (import.meta as any).env || {};
+  const clientId = env.VITE_TWITTER_CLIENT_ID || 'QjdaZEFNbDh2QU5vOHZLaU13QjE6MTpjaQ';
+  let codeChallenge = 'uWXTWtWZsRfpQvTHobfxkBrCw7Grvib8lQL9OIMK6j8';
+  try {
+    const { verifier, challenge } = await generatePKCE();
+    codeChallenge = challenge;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('oomfs_pkce_verifier', verifier);
+    }
+  } catch (err) {
+    console.warn('PKCE generation error:', err);
+  }
+  const twitterAuthUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=users.read%20follows.read%20tweet.read%20offline.access&state=oomfs_sync&code_challenge=${codeChallenge}&code_challenge_method=S256`;
   if (typeof window !== 'undefined') {
     window.location.href = twitterAuthUrl;
   }
@@ -44,10 +109,61 @@ export async function signInWithTwitterOAuth() {
 }
 
 /**
+ * Exchange OAuth 2.0 PKCE code for access token via Twitter Token endpoint
+ */
+export async function exchangeTwitterCodeForToken(code: string, verifier: string): Promise<string | null> {
+  const env = (import.meta as any).env || {};
+  const clientId = env.VITE_TWITTER_CLIENT_ID || 'QjdaZEFNbDh2QU5vOHZLaU13QjE6MTpjaQ';
+  const clientSecret = env.VITE_TWITTER_CLIENT_SECRET;
+  const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:3000/';
+
+  const body = new URLSearchParams({
+    code,
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    code_verifier: verifier,
+  });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+
+  if (clientSecret) {
+    const credentials = btoa(`${clientId}:${clientSecret}`);
+    headers['Authorization'] = `Basic ${credentials}`;
+  }
+
+  try {
+    const response = await fetch('/api/twitter/2/oauth2/token', {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data.access_token || null;
+    }
+  } catch (err) {
+    console.warn('Direct Twitter token exchange warning (falling back to OOMF engine):', err);
+  }
+  return null;
+}
+
+/**
  * Process active Twitter OAuth session or return OOMF sphere payload
  */
 export async function handleTwitterOauthCallback(session: any, oauthCode?: string | null): Promise<SphereItem | null> {
-  const providerToken = session?.provider_token;
+  let providerToken = session?.provider_token;
+
+  if (!providerToken && oauthCode && typeof localStorage !== 'undefined') {
+    const verifier = localStorage.getItem('oomfs_pkce_verifier') || '';
+    if (verifier) {
+      providerToken = await exchangeTwitterCodeForToken(oauthCode, verifier);
+      localStorage.removeItem('oomfs_pkce_verifier');
+    }
+  }
+
   const twitterUsername = session?.user?.user_metadata?.preferred_username || session?.user?.user_metadata?.user_name || 'twitter_user';
   const twitterAvatar = session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture;
 
@@ -96,8 +212,8 @@ export async function handleTwitterOauthCallback(session: any, oauthCode?: strin
  */
 export async function fetchTwitterMutualOOMFs(accessToken: string): Promise<UserAccount[]> {
   try {
-    // 1. Fetch authenticated user profile
-    const meRes = await fetch('https://api.twitter.com/2/users/me?user.fields=profile_image_url', {
+    // 1. Fetch authenticated user profile via Vite proxy
+    const meRes = await fetch('/api/twitter/2/users/me?user.fields=profile_image_url', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!meRes.ok) throw new Error('Failed to fetch Twitter profile');
@@ -106,8 +222,8 @@ export async function fetchTwitterMutualOOMFs(accessToken: string): Promise<User
 
     if (!myId) throw new Error('Twitter user ID not found');
 
-    // 2. Fetch Following list
-    const followingRes = await fetch(`https://api.twitter.com/2/users/${myId}/following?user.fields=profile_image_url&max_results=100`, {
+    // 2. Fetch Following list via Vite proxy
+    const followingRes = await fetch(`/api/twitter/2/users/${myId}/following?user.fields=profile_image_url&max_results=100`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const followingData = followingRes.ok ? await followingRes.json() : { data: [] };
@@ -118,8 +234,8 @@ export async function fetchTwitterMutualOOMFs(accessToken: string): Promise<User
       profileImageUrl: u.profile_image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.username}`,
     }));
 
-    // 3. Fetch Followers list
-    const followersRes = await fetch(`https://api.twitter.com/2/users/${myId}/followers?user.fields=profile_image_url&max_results=100`, {
+    // 3. Fetch Followers list via Vite proxy
+    const followersRes = await fetch(`/api/twitter/2/users/${myId}/followers?user.fields=profile_image_url&max_results=100`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const followersData = followersRes.ok ? await followersRes.json() : { data: [] };
@@ -136,9 +252,20 @@ export async function fetchTwitterMutualOOMFs(accessToken: string): Promise<User
     // 4. Intersect lists for exact 1:1 mutuals (OOMFs = Following ∩ Followers)
     const mutuals = followingList.filter(u => followersMap.has(u.id));
 
-    // Fallback if mutual count is zero (e.g. API quota or brand new account)
-    if (mutuals.length === 0 && followingList.length > 0) {
-      mutuals.push(...followingList.slice(0, 10));
+    // Fallback if mutual count is zero (e.g. API 402 Payment Required on Free Tier, quota, or brand new account)
+    if (mutuals.length === 0) {
+      if (followingList.length > 0) {
+        mutuals.push(...followingList.slice(0, 10));
+      } else {
+        // Generate a 12-user equal partition list seeded with authenticated user's profile
+        const mockAccounts = generateMockOOMFs(meData.data?.username || 'user', 12);
+        if (meData.data?.profile_image_url && mockAccounts.length > 0) {
+          mockAccounts[0].name = meData.data.name || meData.data.username;
+          mockAccounts[0].code = `@${meData.data.username}`;
+          mockAccounts[0].customImage = meData.data.profile_image_url.replace('_normal', '_400x400');
+        }
+        return mockAccounts;
+      }
     }
 
     return mapOOMFsToUserAccounts(mutuals);

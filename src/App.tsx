@@ -70,10 +70,14 @@ export const App: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const oauthCode = urlParams.get('code');
       const oauthState = urlParams.get('state');
+      const hasHashToken = typeof window !== 'undefined' && (window.location.hash.includes('access_token') || window.location.hash.includes('provider_token'));
 
-      if (pendingSync === 'true' || oauthState === 'oomfs_sync' || oauthCode) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const hasProviderToken = !!session?.provider_token;
+
+      if ((pendingSync === 'true' && (oauthCode || hasHashToken || oauthState === 'oomfs_sync')) || oauthCode || hasHashToken) {
         localStorage.removeItem('oomfs_pending_twitter_sync');
-        if (oauthCode && typeof window !== 'undefined') {
+        if ((oauthCode || hasHashToken) && typeof window !== 'undefined') {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
 

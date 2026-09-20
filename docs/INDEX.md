@@ -45,6 +45,7 @@ Read the dedicated context specs below for full component contracts, state flow,
 | **Code Galaxy** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Network-level 3D constellation view ($N=2,500+$ follower nodes). Features double-click map entry and minimalist `"/spherename"` cursor hover labels. See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
 | **Sphere Owner** | [SphereOwnerPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereOwnerPage.tsx) | Dedicated profile page for the permanent Sphere Host (`@oomf_architect`, master node anchor). See [SPHERE_OWNER_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_OWNER_PAGE.md). |
 | **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Page-sized account profile manager floating over full-bleed calm sky atmosphere (zero dark card backdrops). See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
+| **Twitter Auth & OAuth 2.0** | [twitterService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/twitterService.ts) | End-to-end Twitter/𝕏 OAuth 2.0 PKCE system, Vite Dev Proxy, Supabase Auth Provider, and 402 Free Tier fallback. See [TWITTER_AUTH_SYSTEM.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/TWITTER_AUTH_SYSTEM.md). |
 
 ---
 

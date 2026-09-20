@@ -66,6 +66,7 @@ The Supabase client is initialized in [src/utils/supabase.ts](file:///c:/Users/G
 
 1. **[authService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/authService.ts)**: Handles profile creation, authentication (`signUpUser`, `signInUser`), session management, and profile updates (`updateUserProfile`).
 2. **[sphereService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/sphereService.ts)**: Handles sphere persistence (`fetchSpheresFromSupabase`, `saveSphereToSupabase`, `updateSphereInSupabase`) and image uploads to Supabase storage (`uploadTileImageToSupabase`).
+3. **[twitterService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/twitterService.ts)**: Handles Twitter/𝕏 OAuth 2.0 PKCE authentication via Supabase Auth Provider (`signInWithTwitterOAuth`), token exchange, and Twitter API v2 mutual OOMF extraction via Vite dev proxy. See [TWITTER_AUTH_SYSTEM.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/TWITTER_AUTH_SYSTEM.md).
 
 ---
 
