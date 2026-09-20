@@ -67,29 +67,35 @@ export const App: React.FC = () => {
   useEffect(() => {
     async function checkTwitterOAuthReturn() {
       const pendingSync = localStorage.getItem('oomfs_pending_twitter_sync');
-      if (pendingSync === 'true') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const oauthCode = urlParams.get('code');
+      const oauthState = urlParams.get('state');
+
+      if (pendingSync === 'true' || oauthState === 'oomfs_sync' || oauthCode) {
         localStorage.removeItem('oomfs_pending_twitter_sync');
+        if (oauthCode && typeof window !== 'undefined') {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const oomfSphere = await handleTwitterOauthCallback(session);
-          if (oomfSphere) {
-            setSpheres(prev => [oomfSphere, ...prev]);
-            setActiveSphereId(oomfSphere.id);
-            setCustomUserShares(oomfSphere.customUserShares);
-            setCustomUserImages(oomfSphere.customUserImages || {});
-            setSettings(prev => ({
-              ...prev,
-              mappingMode: oomfSphere.mappingMode,
-              userCount: oomfSphere.userCount,
-              gridResolution: oomfSphere.gridResolution,
-              theme: oomfSphere.theme,
-              seed: oomfSphere.seed,
-              selectedUserId: null,
-              hoveredUserId: null,
-            }));
-            setActiveTab('map');
-            saveSphereToSupabase(oomfSphere);
-          }
+        const oomfSphere = await handleTwitterOauthCallback(session, oauthCode);
+        if (oomfSphere) {
+          setSpheres(prev => [oomfSphere, ...prev]);
+          setActiveSphereId(oomfSphere.id);
+          setCustomUserShares(oomfSphere.customUserShares);
+          setCustomUserImages(oomfSphere.customUserImages || {});
+          setSettings(prev => ({
+            ...prev,
+            mappingMode: oomfSphere.mappingMode,
+            userCount: oomfSphere.userCount,
+            gridResolution: oomfSphere.gridResolution,
+            theme: oomfSphere.theme,
+            seed: oomfSphere.seed,
+            selectedUserId: null,
+            hoveredUserId: null,
+          }));
+          setActiveTab('map');
+          saveSphereToSupabase(oomfSphere);
         }
       }
     }

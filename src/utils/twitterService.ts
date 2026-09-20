@@ -9,30 +9,44 @@ export interface OOMFUser {
 }
 
 /**
- * Trigger Twitter/X OAuth 2.0 PKCE authentication via Supabase Auth
+ * Trigger Twitter/X OAuth 2.0 PKCE authentication via Supabase Auth or direct Twitter OAuth 2.0
  */
 export async function signInWithTwitterOAuth() {
+  const env = (import.meta as any).env || {};
+  const clientId = env.VITE_TWITTER_CLIENT_ID || 'QjdaZEFNbDh2QU5vOHZLaU13QjE6MTpjaQ';
+  const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:3000/';
+
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
       options: {
-        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}` : undefined,
+        redirectTo: redirectUri,
         scopes: 'users.read follows.read',
       },
     });
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('Supabase Auth Twitter provider error, switching to direct Twitter OAuth 2.0 PKCE:', error.message);
+    } else if (data?.url) {
+      return data;
+    }
   } catch (err) {
-    console.error('Twitter OAuth Error:', err);
-    throw err;
+    console.warn('Supabase OAuth error, using direct Twitter OAuth 2.0 PKCE:', err);
   }
+
+  // Fallback: Direct Twitter/X OAuth 2.0 authorize URL (bypasses Supabase 400 provider validation errors)
+  const twitterAuthUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=users.read%20follows.read%20tweet.read&state=oomfs_sync&code_challenge=challenge&code_challenge_method=plain`;
+
+  if (typeof window !== 'undefined') {
+    window.location.href = twitterAuthUrl;
+  }
+  return undefined;
 }
 
 /**
  * Process active Twitter OAuth session or return OOMF sphere payload
  */
-export async function handleTwitterOauthCallback(session: any): Promise<SphereItem | null> {
+export async function handleTwitterOauthCallback(session: any, oauthCode?: string | null): Promise<SphereItem | null> {
   const providerToken = session?.provider_token;
   const twitterUsername = session?.user?.user_metadata?.preferred_username || session?.user?.user_metadata?.user_name || 'twitter_user';
   const twitterAvatar = session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture;
