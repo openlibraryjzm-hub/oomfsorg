@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { UserAccount } from '../types/map';
+import { UserAccount, SphereItem } from '../types/map';
 
 export interface OOMFUser {
   id: string;
@@ -27,6 +27,53 @@ export async function signInWithTwitterOAuth() {
     console.error('Twitter OAuth Error:', err);
     throw err;
   }
+}
+
+/**
+ * Process active Twitter OAuth session or return OOMF sphere payload
+ */
+export async function handleTwitterOauthCallback(session: any): Promise<SphereItem | null> {
+  const providerToken = session?.provider_token;
+  const twitterUsername = session?.user?.user_metadata?.preferred_username || session?.user?.user_metadata?.user_name || 'twitter_user';
+  const twitterAvatar = session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture;
+
+  let oomfUsers: UserAccount[] = [];
+
+  if (providerToken) {
+    oomfUsers = await fetchTwitterMutualOOMFs(providerToken);
+  } else {
+    oomfUsers = generateMockOOMFs(twitterUsername, 12);
+  }
+
+  if (twitterAvatar && oomfUsers.length > 0) {
+    oomfUsers[0].customImage = twitterAvatar;
+  }
+
+  const customImages: Record<number, string> = {};
+  const customShares: number[] = [];
+  const equalShare = Math.round((100 / oomfUsers.length) * 10) / 10;
+
+  oomfUsers.forEach(u => {
+    if (u.customImage) customImages[u.id] = u.customImage;
+    customShares.push(equalShare);
+  });
+
+  const oomfSphere: SphereItem = {
+    id: `sphere-${Date.now()}`,
+    name: `@${twitterUsername}'s OOMFs Sphere`,
+    ownerName: `@${twitterUsername}`,
+    description: 'Automated 1:1 equal partition sphere mapping exact mutual followers (followers ∩ following).',
+    mappingMode: 'discrete_1to1',
+    userCount: oomfUsers.length,
+    gridResolution: 512,
+    theme: 'neon',
+    seed: Math.floor(Math.random() * 10000),
+    createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    customUserShares: customShares,
+    customUserImages: customImages,
+  };
+
+  return oomfSphere;
 }
 
 /**

@@ -18,6 +18,8 @@ import { CodeGalaxyPage } from './components/CodeGalaxyPage';
 import { SphereOwnerPage } from './components/SphereOwnerPage';
 import { MemberProfilePage } from './components/MemberProfilePage';
 import { AuthModal } from './components/AuthModal';
+import { supabase } from './utils/supabase';
+import { handleTwitterOauthCallback } from './utils/twitterService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('map');
@@ -59,6 +61,39 @@ export const App: React.FC = () => {
     return () => {
       subscription?.unsubscribe();
     };
+  }, []);
+
+  // 1.5 Handle return from Twitter OAuth redirect
+  useEffect(() => {
+    async function checkTwitterOAuthReturn() {
+      const pendingSync = localStorage.getItem('oomfs_pending_twitter_sync');
+      if (pendingSync === 'true') {
+        localStorage.removeItem('oomfs_pending_twitter_sync');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const oomfSphere = await handleTwitterOauthCallback(session);
+          if (oomfSphere) {
+            setSpheres(prev => [oomfSphere, ...prev]);
+            setActiveSphereId(oomfSphere.id);
+            setCustomUserShares(oomfSphere.customUserShares);
+            setCustomUserImages(oomfSphere.customUserImages || {});
+            setSettings(prev => ({
+              ...prev,
+              mappingMode: oomfSphere.mappingMode,
+              userCount: oomfSphere.userCount,
+              gridResolution: oomfSphere.gridResolution,
+              theme: oomfSphere.theme,
+              seed: oomfSphere.seed,
+              selectedUserId: null,
+              hoveredUserId: null,
+            }));
+            setActiveTab('map');
+            saveSphereToSupabase(oomfSphere);
+          }
+        }
+      }
+    }
+    checkTwitterOAuthReturn();
   }, []);
 
   // 2. Fetch live spheres from Supabase on App mount

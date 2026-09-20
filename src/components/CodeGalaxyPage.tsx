@@ -17,7 +17,8 @@ import {
 import { SphereItem, MappingMode, MapTheme } from '../types/map';
 import { UserProfile } from '../types/auth';
 import { GalaxyCanvas, ScreenPositionUpdate } from './GalaxyCanvas';
-import { fetchTwitterMutualOOMFs, generateMockOOMFs, signInWithTwitterOAuth } from '../utils/twitterService';
+import { supabase } from '../utils/supabase';
+import { fetchTwitterMutualOOMFs, generateMockOOMFs, signInWithTwitterOAuth, handleTwitterOauthCallback } from '../utils/twitterService';
 
 interface CodeGalaxyPageProps {
   spheres: SphereItem[];
@@ -64,39 +65,30 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
   const handleTwitterOOMFCreate = async () => {
     setIsSyncingTwitter(true);
     try {
-      const ownerHandle = currentUser ? `@${currentUser.username}` : '@oomf';
-      const userCount = 12;
-      const mockOOMFs = generateMockOOMFs(currentUser?.username || 'user', userCount);
+      // 1. Check if an active Twitter OAuth session exists
+      const { data: { session } } = await supabase.auth.getSession();
 
-      const customImages: Record<number, string> = {};
-      const customShares: number[] = [];
-      const equalShare = Math.round((100 / userCount) * 10) / 10;
+      if (session && session.provider_token) {
+        const sphere = await handleTwitterOauthCallback(session);
+        if (sphere) {
+          onCreateSphere(sphere);
+          setSelectedSphereId(sphere.id);
+          setIsCreateModalOpen(false);
+          return;
+        }
+      }
 
-      mockOOMFs.forEach(u => {
-        if (u.customImage) customImages[u.id] = u.customImage;
-        customShares.push(equalShare);
-      });
-
-      const oomfSphere: SphereItem = {
-        id: `sphere-${Date.now()}`,
-        name: `${currentUser ? `@${currentUser.username}` : 'Twitter'}'s OOMFs Sphere`,
-        ownerName: ownerHandle,
-        description: 'Automated 1:1 equal partition sphere mapping exact mutual followers (followers ∩ following).',
-        mappingMode: 'discrete_1to1',
-        userCount: userCount,
-        gridResolution: 512,
-        theme: 'neon',
-        seed: Math.floor(Math.random() * 10000),
-        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        customUserShares: customShares,
-        customUserImages: customImages,
-      };
-
-      onCreateSphere(oomfSphere);
-      setSelectedSphereId(oomfSphere.id);
-      setIsCreateModalOpen(false);
+      // 2. Set flag and trigger real Twitter/X OAuth redirect
+      localStorage.setItem('oomfs_pending_twitter_sync', 'true');
+      await signInWithTwitterOAuth();
     } catch (err) {
-      console.error('Failed to create Twitter OOMF Sphere:', err);
+      console.error('Failed to execute Twitter OAuth redirect:', err);
+      // Fallback preview
+      const fallbackSphere = await handleTwitterOauthCallback(null);
+      if (fallbackSphere) {
+        onCreateSphere(fallbackSphere);
+        setIsCreateModalOpen(false);
+      }
     } finally {
       setIsSyncingTwitter(false);
     }
