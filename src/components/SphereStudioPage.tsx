@@ -21,6 +21,9 @@ import {
   Layers,
   User,
   Settings,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
 } from 'lucide-react';
 import { MapSettings, MapTheme, UserAccount, SphereItem } from '../types/map';
 import { UserProfile } from '../types/auth';
@@ -79,6 +82,7 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
   const [sphereSearchTerm, setSphereSearchTerm] = useState('');
   const [sphereFilter, setSphereFilter] = useState<'mine' | 'all'>('mine');
   const [activeTab, setActiveTab] = useState<'spheres' | 'config' | 'allocator'>('spheres');
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   useEffect(() => {
     setTypedUserCount(settings.userCount.toString());
@@ -148,25 +152,49 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
     onUpdateUserShares(normalized);
   };
 
+  if (isCollapsed) {
+    return (
+      <div className="pointer-events-auto fixed top-16 sm:top-20 left-4 z-40 flex items-center gap-2">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="p-3 rounded-2xl bg-slate-950/90 hover:bg-white hover:text-black border border-white/20 text-white backdrop-blur-xl shadow-2xl transition-all flex items-center gap-2 font-extrabold text-xs font-mono group"
+          title="Expand Sphere Studio Controls"
+        >
+          <ChevronRight className="w-4 h-4 text-cyan-400 group-hover:text-black transition-colors" />
+          <Globe className="w-4 h-4" />
+          <span>Sphere Studio</span>
+        </button>
+        <button
+          onClick={onGoToMap}
+          className="p-3 rounded-2xl bg-white text-black font-extrabold text-xs shadow-xl hover:bg-zinc-200 transition-all flex items-center gap-1.5 font-mono"
+          title="Return to 3D Sphere Map"
+        >
+          <Sparkles className="w-4 h-4 text-cyan-600" />
+          <span>Full 3D Map</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#080c14] text-white p-4 sm:p-8 font-mono pb-24">
-      <div className="max-w-5xl mx-auto flex flex-col gap-6">
+    <div className="pointer-events-auto h-full w-full lg:w-[560px] max-w-full bg-slate-950/90 backdrop-blur-2xl border-r border-white/10 shadow-2xl overflow-y-auto p-4 sm:p-6 text-white font-mono flex flex-col gap-6 z-30 transition-all duration-300">
+      <div className="flex flex-col gap-6">
         
         {/* Top Header Navigation */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-3xl bg-zinc-950/90 border border-zinc-800/80 shadow-2xl">
           <div className="flex items-center gap-3">
             <button
-              onClick={onGoToMap}
+              onClick={() => setIsCollapsed(true)}
               className="p-2.5 rounded-2xl bg-zinc-900 hover:bg-white hover:text-black border border-zinc-700 text-white transition-all shadow-md"
-              title="Return to 3D Sphere Map"
+              title="Collapse dock panel for full 3D planet preview"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 text-cyan-400" />
             </button>
 
             <div>
               <div className="flex items-center gap-2">
                 <Globe className="w-6 h-6 text-white animate-spin-slow" />
-                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">Sphere Studio</h1>
+                <h1 className="text-xl font-black text-white tracking-tight">Sphere Studio</h1>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
                 Sphere Planet Owner: <strong className="text-white">{activeSphereOwnerName}</strong>
@@ -177,10 +205,10 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onGoToMap}
-              className="px-5 py-2.5 rounded-2xl bg-white text-black font-extrabold text-xs shadow-lg hover:bg-zinc-200 transition-all flex items-center gap-2"
+              className="px-4 py-2 rounded-2xl bg-white text-black font-extrabold text-xs shadow-lg hover:bg-zinc-200 transition-all flex items-center gap-1.5"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Launch 3D Map</span>
+              <Eye className="w-3.5 h-3.5" />
+              <span>Full Map</span>
             </button>
           </div>
         </div>
