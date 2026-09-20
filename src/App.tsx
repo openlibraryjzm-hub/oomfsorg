@@ -331,8 +331,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* 2. Background Native 3D Interactive Three.js Sphere Globe Canvas (Rendered on map & studio views for live preview) */}
-      {(activeTab === 'map' || activeTab === 'studio') && (
+      {/* 2. Background Native 3D Interactive Three.js Sphere Globe Canvas (Rendered ONLY on map view) */}
+      {activeTab === 'map' && (
         <MapCanvas
           settings={settings}
           users={users}
@@ -353,9 +353,9 @@ export const App: React.FC = () => {
 
       {/* 3. Conditional Dedicated Page View Rendering */}
 
-      {/* Sphere Studio Dedicated Glassmorphism Overlay Dock */}
+      {/* Sphere Studio Dedicated Full-Bleed Page View with 50:50 Split Embedded Preview */}
       {activeTab === 'studio' && (
-        <div className="fixed inset-0 z-20 w-full h-full pointer-events-none">
+        <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-[#080c14] pointer-events-auto">
           <SphereStudioPage
             spheres={spheres}
             activeSphereId={activeSphereId}
@@ -363,6 +363,7 @@ export const App: React.FC = () => {
             currentUser={currentUser}
             settings={settings}
             users={users}
+            tiles={tiles}
             onUpdateSettings={handleUpdateSettings}
             onResetSeed={handleResetSeed}
             onUpdateUserShares={handleUpdateShares}

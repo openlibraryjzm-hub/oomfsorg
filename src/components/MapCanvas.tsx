@@ -153,12 +153,20 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
       if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
       const w = containerRef.current.clientWidth;
       const h = containerRef.current.clientHeight;
+      if (w === 0 || h === 0) return;
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h);
     };
 
     window.addEventListener('resize', handleResize);
+
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
     // Animation Loop
     let animationFrameId: number;
@@ -184,6 +192,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       cancelAnimationFrame(animationFrameId);
       if (rendererRef.current && rendererRef.current.domElement) {
         rendererRef.current.domElement.remove();
