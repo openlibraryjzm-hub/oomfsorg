@@ -319,8 +319,6 @@ export const App: React.FC = () => {
         onSelectTab={setActiveTab}
         user={currentUser}
         activeSphereOwnerName={activeSphere?.ownerName}
-        spheres={spheres}
-        onSelectSphere={handleSelectSphere}
         onOpenAuthModal={handleOpenAuthModal}
         onSignOut={handleSignOut}
         onViewMyProfile={handleViewMyProfile}
