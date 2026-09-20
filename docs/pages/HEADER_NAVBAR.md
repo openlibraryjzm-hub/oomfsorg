@@ -45,17 +45,22 @@ The top-left navigation branding presents a frameless URL string formatted as `o
   - If `activeTab !== 'galaxy'`: Clicking opens the 3D Code Galaxy view.
   - If `activeTab === 'galaxy'`: Clicking toggles back to the **3D Sphere Map** (`activeTab = 'map'`).
 
-### 2. `{owner}` Segment (e.g. `oprah`)
+### 2. `{owner}` / Dynamic Parameter Segment (e.g. `oprah`)
 - **Display String Resolution**:
   1. Primary: `activeSphereOwnerName` (the owner handle of the sphere planet currently being viewed on the globe).
   2. Fallback: `user?.username` (signed-in account handle).
   3. Ultimate Fallback: `'oprah'`.
   4. Sanitization: Strips leading `@` and replaces spaces with hyphens (`replace(/^@/, '').toLowerCase().replace(/\s+/g, '-')`).
-- **Target Page**: **Member Profile Page** (`onViewMyProfile` / `activeTab = 'member'`).
-- **Active State Indicator**: Cyan text highlight with cyan underline decoration (`text-cyan-300 underline underline-offset-4 decoration-cyan-400`).
-- **Toggle Invariant**:
-  - If `activeTab !== 'member'`: Clicking opens the Member Profile page.
-  - If `activeTab === 'member'`: Clicking toggles back to the **3D Sphere Map** (`activeTab = 'map'`).
+- **Interactive Search & Jump Input**:
+  - Rendered as a transparent, auto-sizing monospace text input (`<input />`).
+  - Users can type any sphere owner handle (`oprah`, `@doge`), sphere ID (`sphere-genesis`), or sphere name (`Genesis Prime`).
+  - **Submission Triggers**: Pressing **`Enter`** or **clicking off / blurring (`onBlur`)**.
+  - **Match Found**: Switches to the matched 3D sphere planet (`onSelectSphere(matched.id)`), returns to the 3D Sphere Map (`activeTab = 'map'`), and updates the header handle text.
+  - **No Match Found**: Resets input back to the original active sphere owner handle.
+  - **Escape Key (`Escape`)**: Cancels typing and resets input.
+- **Target Page Navigation & Toggle**:
+  - Pressing `Enter` on unchanged handle text (or blurring without typing) navigates to the Member Profile page (`activeTab = 'member'`).
+  - Re-pressing `Enter` or blurring while on the Member Profile page toggles back to the 3D Sphere Map (`activeTab = 'map'`).
 
 ---
 

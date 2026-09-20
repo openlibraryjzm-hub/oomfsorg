@@ -34,8 +34,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  const atmosphereRef = useRef<THREE.Mesh | null>(null);
-
   // 1. Initialize Native 3D Three.js Globe Scene
   useEffect(() => {
     if (!containerRef.current) return;
@@ -43,9 +41,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    // Scene
+    // Scene: Pristine White Ceramic Studio Background (Zero Scene Fog!)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(settings.theme === 'minimal' ? '#0f172a' : '#080c16');
+    scene.background = new THREE.Color('#f8fafc');
     sceneRef.current = scene;
 
     // 3D Perspective Camera
@@ -92,7 +90,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     texture.wrapT = THREE.ClampToEdgeWrapping;
     textureRef.current = texture;
 
-    // Create Native 3D Globe Mesh Geometry
+    // Native 3D Globe Mesh Geometry
     const radius = 2.0;
     const geometry = new THREE.SphereGeometry(radius, 120, 60);
 
@@ -104,37 +102,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     scene.add(mesh);
     meshRef.current = mesh;
 
-    // Atmosphere Outer Glow Shell (Additive Blending prevents darkening/dimming of globe textures)
-    const atmosphereGeo = new THREE.SphereGeometry(radius * 1.04, 64, 32);
-    const atmosphereMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.15,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.BackSide,
-    });
-    const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-    atmosphere.visible = settings.showAtmosphere;
-    scene.add(atmosphere);
-    atmosphereRef.current = atmosphere;
-
-    // Starfield Particle System
-    const particleGeo = new THREE.BufferGeometry();
-    const particleCount = 1500;
-    const posArray = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i++) {
-      posArray[i] = (Math.random() - 0.5) * 90;
-    }
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particleMat = new THREE.PointsMaterial({
-      size: 0.15,
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.45,
-    });
-    const particles = new THREE.Points(particleGeo, particleMat);
-    scene.add(particles);
+    // 100% Crisp Blender-style 3D Grid Floor (Zero fog, zero haze, crisp solid grid lines)
+    const gridHelper = new THREE.GridHelper(1000, 200, 0x94a3b8, 0xcbd5e1);
+    gridHelper.position.y = -3.2;
+    scene.add(gridHelper);
 
     // Resize Handler
     const handleResize = () => {
@@ -215,15 +186,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     textureRef.current.needsUpdate = true;
   }, [users, tiles, settings.hoveredUserId, settings.selectedUserId, settings.theme, settings.showGrid]);
 
-  // 3. Theme Background & Atmosphere visibility update
+  // 3. Ceramic White Background update
   useEffect(() => {
     if (sceneRef.current) {
-      sceneRef.current.background = new THREE.Color(settings.theme === 'minimal' ? '#0f172a' : '#080c16');
+      sceneRef.current.background = new THREE.Color('#f8fafc');
     }
-    if (atmosphereRef.current) {
-      atmosphereRef.current.visible = settings.showAtmosphere;
-    }
-  }, [settings.theme, settings.showAtmosphere]);
+  }, []);
 
   // 4. Pointer Raycasting on Native 3D Sphere Surface
   const handlePointerMove = (e: React.PointerEvent) => {

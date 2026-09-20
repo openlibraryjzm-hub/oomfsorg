@@ -419,7 +419,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
             {/* 4. Display Toggles & Seed Action */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold text-slate-300">Display Controls</span>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => onUpdateSettings({ autoRotate: !settings.autoRotate })}
                   className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all ${
@@ -442,18 +442,6 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                 >
                   <Grid className="w-3.5 h-3.5" />
                   Grid
-                </button>
-
-                <button
-                  onClick={() => onUpdateSettings({ showAtmosphere: !settings.showAtmosphere })}
-                  className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all ${
-                    settings.showAtmosphere
-                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Glow
                 </button>
               </div>
 

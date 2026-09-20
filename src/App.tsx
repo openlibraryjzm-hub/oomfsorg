@@ -38,7 +38,6 @@ export const App: React.FC = () => {
     hoveredUserId: null,
     autoRotate: false,
     showGrid: true,
-    showAtmosphere: true,
     seed: 42,
     showRightPanel: true,
     activePanelTab: 'config',
@@ -313,13 +312,15 @@ export const App: React.FC = () => {
   }, [users, settings.selectedUserId, settings.hoveredUserId]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[#080c16]">
+    <main className="relative w-screen h-screen overflow-hidden bg-[#f8fafc]">
       {/* 1. Header Navigation Bar */}
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         user={currentUser}
         activeSphereOwnerName={activeSphere?.ownerName}
+        spheres={spheres}
+        onSelectSphere={handleSelectSphere}
         onOpenAuthModal={handleOpenAuthModal}
         onSignOut={handleSignOut}
         onViewMyProfile={handleViewMyProfile}
@@ -356,7 +357,7 @@ export const App: React.FC = () => {
 
       {/* Code Galaxy Interactive View */}
       {activeTab === 'galaxy' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#080c16]/90 backdrop-blur-md">
+        <div className="absolute inset-0 top-16 z-10 overflow-y-auto">
           <CodeGalaxyPage
             spheres={spheres}
             activeSphereId={activeSphereId}
@@ -371,7 +372,7 @@ export const App: React.FC = () => {
 
       {/* Sphere Owner Profile View */}
       {activeTab === 'owner' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#080c16]/90 backdrop-blur-md">
+        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#f8fafc]/90 backdrop-blur-md">
           <SphereOwnerPage
             userCount={users.length}
             tileCount={tiles.length}
@@ -382,7 +383,7 @@ export const App: React.FC = () => {
 
       {/* Account Profile View */}
       {activeTab === 'member' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#080c16]/90 backdrop-blur-md">
+        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#f8fafc]/90 backdrop-blur-md">
           <MemberProfilePage
             currentUser={currentUser}
             onGoToMap={() => setActiveTab('map')}

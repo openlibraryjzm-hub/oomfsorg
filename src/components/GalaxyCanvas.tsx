@@ -74,9 +74,9 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
 
     const count = spheres.length;
 
-    // 1. Scene & Fog Setup
+    // 1. Scene Setup (Single Solid Color Background: #f8fafc)
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x080c16, 0.012);
+    scene.background = new THREE.Color('#f8fafc');
 
     // 2. Camera Setup
     const camera = new THREE.PerspectiveCamera(
@@ -109,49 +109,7 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
     pointLight.position.set(0, 15, 0);
     scene.add(pointLight);
 
-    // 5. Background 3D Starfield Particle Dust Universe (5,000 Stars)
-    const starCount = 5000;
-    const starGeometry = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-
-    const palette = [
-      new THREE.Color(0x00f3ff),
-      new THREE.Color(0xa855f7),
-      new THREE.Color(0x3b82f6),
-      new THREE.Color(0xffffff),
-    ];
-
-    for (let i = 0; i < starCount; i++) {
-      const r = 20 + Math.random() * 150;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-
-      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      starPositions[i * 3 + 2] = r * Math.cos(phi);
-
-      const color = palette[Math.floor(Math.random() * palette.length)];
-      starColors[i * 3] = color.r;
-      starColors[i * 3 + 1] = color.g;
-      starColors[i * 3 + 2] = color.b;
-    }
-
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-
-    const starMaterial = new THREE.PointsMaterial({
-      size: 0.3,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-    });
-
-    const starField = new THREE.Points(starGeometry, starMaterial);
-    scene.add(starField);
-
-    // 6. InstancedMesh Pipeline for 2,500+ Sphere Nodes (1 Draw Call!)
+    // 5. InstancedMesh Pipeline for 2,500+ Sphere Nodes (1 Draw Call!)
     const planetGeo = new THREE.SphereGeometry(0.75, 16, 16);
     const planetMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const planetInstancedMesh = new THREE.InstancedMesh(planetGeo, planetMat, count);
@@ -375,9 +333,6 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
       // Apply velocity damping for smooth weightless space flight
       camera.position.add(moveVelocityRef.current);
       moveVelocityRef.current.multiplyScalar(0.88);
-
-      // Rotate background starfield dust slowly
-      starField.rotation.y += 0.0002;
 
       renderer.render(scene, camera);
     };

@@ -38,7 +38,6 @@ export interface MapSettings {
   hoveredUserId: number | null;
   autoRotate: boolean;
   showGrid: boolean;
-  showAtmosphere: boolean;
   seed: number;
   showRightPanel: boolean; // Toggle Right Dock Panel
   activePanelTab: RightPanelTab; // Active tab in Right Dock Panel
