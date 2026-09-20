@@ -52,31 +52,49 @@ export async function fetchSpheresFromSupabase(): Promise<SphereItem[]> {
   }
 }
 
-export async function saveSphereToSupabase(sphere: SphereItem): Promise<boolean> {
+export async function saveSphereToSupabase(sphere: SphereItem): Promise<SphereItem | null> {
   try {
-    const { error } = await supabase.from('spheres').insert([
-      {
-        name: sphere.name,
-        owner_name: sphere.ownerName,
-        description: sphere.description,
-        mapping_mode: sphere.mappingMode,
-        user_count: sphere.userCount,
-        grid_resolution: sphere.gridResolution,
-        theme: sphere.theme,
-        seed: sphere.seed,
-        custom_user_shares: sphere.customUserShares || [],
-        custom_user_images: sphere.customUserImages || {},
-      },
-    ]);
+    const { data, error } = await supabase
+      .from('spheres')
+      .insert([
+        {
+          name: sphere.name,
+          owner_name: sphere.ownerName,
+          description: sphere.description,
+          mapping_mode: sphere.mappingMode,
+          user_count: sphere.userCount,
+          grid_resolution: sphere.gridResolution,
+          theme: sphere.theme,
+          seed: sphere.seed,
+          custom_user_shares: sphere.customUserShares || [],
+          custom_user_images: sphere.customUserImages || {},
+        },
+      ])
+      .select()
+      .single();
 
-    if (error) {
-      console.error('Failed to insert sphere into Supabase:', error.message);
-      return false;
+    if (error || !data) {
+      console.error('Failed to insert sphere into Supabase:', error?.message);
+      return null;
     }
-    return true;
+
+    return {
+      id: data.id.toString(),
+      name: data.name,
+      ownerName: data.owner_name,
+      description: data.description || '',
+      mappingMode: data.mapping_mode,
+      userCount: data.user_count,
+      gridResolution: data.grid_resolution,
+      theme: data.theme,
+      seed: data.seed,
+      createdAt: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      customUserShares: data.custom_user_shares || undefined,
+      customUserImages: data.custom_user_images || {},
+    };
   } catch (err) {
     console.error('Error saving sphere:', err);
-    return false;
+    return null;
   }
 }
 

@@ -146,25 +146,26 @@ export const App: React.FC = () => {
 
   // Create New Sphere & Save to Supabase
   const handleCreateSphere = useCallback(async (newSphere: SphereItem) => {
-    setSpheres(prev => [newSphere, ...prev]);
-    setActiveSphereId(newSphere.id);
-    setCustomUserShares(newSphere.customUserShares);
-    setCustomUserImages(newSphere.customUserImages || {});
+    // Persist to Supabase DB first to obtain canonical DB UUID
+    const saved = await saveSphereToSupabase(newSphere);
+    const targetSphere = saved || newSphere;
+
+    setSpheres(prev => [targetSphere, ...prev.filter(s => s.id !== newSphere.id)]);
+    setActiveSphereId(targetSphere.id);
+    setCustomUserShares(targetSphere.customUserShares);
+    setCustomUserImages(targetSphere.customUserImages || {});
 
     setSettings(prev => ({
       ...prev,
-      mappingMode: newSphere.mappingMode,
-      userCount: newSphere.userCount,
-      gridResolution: newSphere.gridResolution,
-      theme: newSphere.theme,
-      seed: newSphere.seed,
+      mappingMode: targetSphere.mappingMode,
+      userCount: targetSphere.userCount,
+      gridResolution: targetSphere.gridResolution,
+      theme: targetSphere.theme,
+      seed: targetSphere.seed,
       selectedUserId: null,
       hoveredUserId: null,
     }));
     setActiveTab('map');
-
-    // Persist to Supabase DB
-    await saveSphereToSupabase(newSphere);
   }, []);
 
   // Upload custom tile image file to Supabase Storage & sync URL
@@ -356,6 +357,10 @@ export const App: React.FC = () => {
       {activeTab === 'studio' && (
         <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-[#080c14] pointer-events-auto">
           <SphereStudioPage
+            spheres={spheres}
+            activeSphereId={activeSphereId}
+            onSelectSphere={handleSelectSphere}
+            currentUser={currentUser}
             settings={settings}
             users={users}
             onUpdateSettings={handleUpdateSettings}

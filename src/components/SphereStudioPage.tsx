@@ -18,10 +18,18 @@ import {
   Lock,
   ArrowLeft,
   Sparkles,
+  Layers,
+  User,
+  Settings,
 } from 'lucide-react';
-import { MapSettings, MapTheme, UserAccount } from '../types/map';
+import { MapSettings, MapTheme, UserAccount, SphereItem } from '../types/map';
+import { UserProfile } from '../types/auth';
 
 interface SphereStudioPageProps {
+  spheres?: SphereItem[];
+  activeSphereId?: string;
+  onSelectSphere?: (sphereId: string) => void;
+  currentUser?: UserProfile | null;
   settings: MapSettings;
   users: UserAccount[];
   onUpdateSettings: (updated: Partial<MapSettings>) => void;
@@ -49,6 +57,10 @@ const THEMES: Array<{ id: MapTheme; label: string; color: string }> = [
 ];
 
 export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
+  spheres = [],
+  activeSphereId = '',
+  onSelectSphere,
+  currentUser = null,
   settings,
   users,
   onUpdateSettings,
@@ -64,7 +76,9 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
 }) => {
   const [typedUserCount, setTypedUserCount] = useState<string>(settings.userCount.toString());
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'config' | 'allocator'>('config');
+  const [sphereSearchTerm, setSphereSearchTerm] = useState('');
+  const [sphereFilter, setSphereFilter] = useState<'mine' | 'all'>('mine');
+  const [activeTab, setActiveTab] = useState<'spheres' | 'config' | 'allocator'>('spheres');
 
   useEffect(() => {
     setTypedUserCount(settings.userCount.toString());
@@ -87,6 +101,22 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
       u.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const displayedSpheres = spheres.filter(s => {
+    const myHandle = currentUser ? `@${currentUser.username}`.toLowerCase() : '';
+    const rawUser = currentUser ? currentUser.username.toLowerCase() : '';
+    const owner = s.ownerName.toLowerCase();
+    const isMine = currentUser && (owner === myHandle || owner === rawUser);
+
+    if (sphereFilter === 'mine' && !isMine) return false;
+
+    if (sphereSearchTerm.trim()) {
+      const q = sphereSearchTerm.toLowerCase();
+      return s.name.toLowerCase().includes(q) || s.ownerName.toLowerCase().includes(q);
+    }
+
+    return true;
+  });
 
   const handleSliderChange = (changedIdx: number, newVal: number) => {
     const currentShares = users.map(u => u.targetShare);
@@ -155,7 +185,7 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
           </div>
         </div>
 
-        {!isSphereOwner && (
+        {!isSphereOwner && activeTab !== 'spheres' && (
           <div className="p-4 rounded-3xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm flex items-start gap-3">
             <Lock className="w-5 h-5 text-white shrink-0 mt-0.5" />
             <div>
@@ -168,10 +198,22 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
         )}
 
         {/* Tab Selector */}
-        <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800">
+        <div className="grid grid-cols-3 gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800">
+          <button
+            onClick={() => setActiveTab('spheres')}
+            className={`flex items-center justify-center gap-2 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
+              activeTab === 'spheres'
+                ? 'bg-white text-black shadow-lg'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Select Sphere</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('config')}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-extrabold transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
               activeTab === 'config'
                 ? 'bg-white text-black shadow-lg'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
@@ -183,7 +225,7 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
 
           <button
             onClick={() => setActiveTab('allocator')}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-extrabold transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
               activeTab === 'allocator'
                 ? 'bg-white text-black shadow-lg'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
@@ -193,6 +235,189 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
             <span>Territory Conquest Allocator</span>
           </button>
         </div>
+
+        {/* Tab 0: Sphere Selector & Management */}
+        {activeTab === 'spheres' && (
+          <div className="flex flex-col gap-6 p-6 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl">
+            {/* Filter Pills & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 p-1 bg-zinc-900 rounded-2xl border border-zinc-800">
+                <button
+                  onClick={() => setSphereFilter('mine')}
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    sphereFilter === 'mine'
+                      ? 'bg-white text-black shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>
+                    My Spheres (
+                    {
+                      spheres.filter(s => {
+                        const myHandle = currentUser ? `@${currentUser.username}`.toLowerCase() : '';
+                        const rawUser = currentUser ? currentUser.username.toLowerCase() : '';
+                        const owner = s.ownerName.toLowerCase();
+                        return currentUser && (owner === myHandle || owner === rawUser);
+                      }).length
+                    }
+                    )
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSphereFilter('all')}
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    sphereFilter === 'all'
+                      ? 'bg-white text-black shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>All Spheres ({spheres.length})</span>
+                </button>
+              </div>
+
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search spheres by name or host handle..."
+                  value={sphereSearchTerm}
+                  onChange={e => setSphereSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Sphere Cards Grid */}
+            {displayedSpheres.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-zinc-900/50 border border-zinc-800 flex flex-col items-center justify-center gap-3">
+                <Globe className="w-10 h-10 text-zinc-600" />
+                <h3 className="text-base font-extrabold text-white">No Spheres Found</h3>
+                <p className="text-xs text-zinc-400 max-w-sm leading-relaxed">
+                  {sphereFilter === 'mine'
+                    ? currentUser
+                      ? "You haven't created any spheres yet. Switch to 'All Spheres' or create a new sphere in Code Galaxy."
+                      : "Sign in to view your owned spheres or switch to 'All Spheres'."
+                    : "No spheres match your search query."}
+                </p>
+                {sphereFilter === 'mine' && (
+                  <button
+                    onClick={() => setSphereFilter('all')}
+                    className="mt-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-all"
+                  >
+                    View All Public Spheres
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayedSpheres.map(sphere => {
+                  const isActive = sphere.id === activeSphereId;
+                  const myHandle = currentUser ? `@${currentUser.username}`.toLowerCase() : '';
+                  const rawUser = currentUser ? currentUser.username.toLowerCase() : '';
+                  const owner = sphere.ownerName.toLowerCase();
+                  const isOwner = currentUser && (owner === myHandle || owner === rawUser);
+
+                  return (
+                    <div
+                      key={sphere.id}
+                      className={`p-5 rounded-3xl border transition-all flex flex-col justify-between gap-4 ${
+                        isActive
+                          ? 'bg-zinc-900 border-white shadow-xl ring-1 ring-white/30'
+                          : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-base text-white">{sphere.name}</span>
+                            {isActive && (
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-black tracking-wider flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                ACTIVE
+                              </span>
+                            )}
+                          </div>
+
+                          {isOwner ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white border border-white/20 text-[10px] font-bold">
+                              Owner
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full bg-zinc-900 text-zinc-400 border border-zinc-800 text-[10px] font-bold flex items-center gap-1">
+                              <Lock className="w-2.5 h-2.5" /> View Only
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-zinc-400">
+                          Host: <strong className="text-white">{sphere.ownerName}</strong>
+                        </p>
+                      </div>
+
+                      {/* Specs Row */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-3 px-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-[11px] font-mono">
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block">GRID</span>
+                          <strong className="text-white">{sphere.gridResolution} Q</strong>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block">PARADIGM</span>
+                          <strong className="text-white">
+                            {sphere.mappingMode === 'discrete_1to1' ? '1:1 Fair' : 'Conquest'}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block">USERS</span>
+                          <strong className="text-white">U={sphere.userCount}</strong>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block">THEME</span>
+                          <strong className="text-white capitalize">{sphere.theme}</strong>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            if (onSelectSphere) onSelectSphere(sphere.id);
+                            setActiveTab('config');
+                          }}
+                          className={`flex-1 py-2.5 px-4 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md ${
+                            isActive
+                              ? 'bg-white text-black hover:bg-zinc-200'
+                              : 'bg-zinc-900 hover:bg-white hover:text-black text-white border border-zinc-700'
+                          }`}
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                          <span>{isOwner ? 'Configure & Edit' : 'View Settings'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (onSelectSphere) onSelectSphere(sphere.id);
+                            onGoToMap();
+                          }}
+                          className="py-2.5 px-4 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md"
+                          title="Launch 3D Map for this sphere"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Launch 3D Map</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab 1: Globe & Grid Configuration */}
         {activeTab === 'config' && (
