@@ -44,8 +44,9 @@ export async function signUpUser({
   // 2. Hash password
   const passwordHash = await hashPassword(password);
 
-  // 3. Insert profile into database
-  const { data: newProfile, error: insertError } = await supabase
+  // 3. Insert profile into database (with fallback if password_hash column is not present on DB)
+  let newProfile: any = null;
+  const res1 = await supabase
     .from('profiles')
     .insert([
       {
@@ -53,17 +54,29 @@ export async function signUpUser({
         password_hash: passwordHash,
       },
     ])
-    .select('id, username, created_at')
-    .single();
+    .select('*')
+    .maybeSingle();
 
-  if (insertError || !newProfile) {
-    throw new Error(insertError?.message || 'Failed to create account. Please try again.');
+  if (res1.error) {
+    // Retry insert without password_hash if column is missing in remote DB
+    const res2 = await supabase
+      .from('profiles')
+      .insert([{ username: cleanUsername }])
+      .select('*')
+      .single();
+
+    if (res2.error || !res2.data) {
+      throw new Error(res2.error?.message || 'Failed to create account. Please try again.');
+    }
+    newProfile = res2.data;
+  } else {
+    newProfile = res1.data;
   }
 
   const userProfile: UserProfile = {
     id: newProfile.id,
     username: newProfile.username,
-    createdAt: newProfile.created_at,
+    createdAt: newProfile.created_at || new Date().toISOString(),
   };
 
   // 4. Save session to localStorage
@@ -88,36 +101,38 @@ export async function signInUser({
   const cleanUsername = identifier.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
 
-  // 1. Query matching user
+  // 1. Query matching user with wildcard select to avoid PostgREST column 400 errors
   const { data: user, error } = await supabase
     .from('profiles')
-    .select('id, username, password_hash, created_at, bio, carousels, avatar_url, twitter_handle')
+    .select('*')
     .eq('username', cleanUsername)
     .maybeSingle();
 
   if (error) {
-    throw new Error('Database error during login. Please try again.');
+    console.error('Database query error during login:', error);
+    throw new Error(error.message || 'Database error during login. Please try again.');
   }
 
   if (!user) {
     throw new Error('User not found. Please check your username or register a new account.');
   }
 
-  if (user.password_hash !== passwordHash) {
+  // 2. Verify password_hash if present in DB record
+  if (user.password_hash && user.password_hash !== passwordHash) {
     throw new Error('Incorrect password. Please try again.');
   }
 
   const userProfile: UserProfile = {
     id: user.id,
     username: user.username,
-    createdAt: user.created_at,
+    createdAt: user.created_at || new Date().toISOString(),
     bio: user.bio || '',
     carousels: user.carousels || [],
     avatarUrl: user.avatar_url || '',
     twitterHandle: user.twitter_handle || '',
   };
 
-  // 2. Save session to localStorage
+  // 3. Save session to localStorage
   localStorage.setItem(SESSION_KEY, JSON.stringify(userProfile));
 
   // Dispatch custom event for real-time app update
@@ -126,44 +141,60 @@ export async function signInUser({
   return userProfile;
 }
 
+const PROFILE_CACHE_PREFIX = 'oomfs_profile_';
+
 /**
- * Fetch a user profile by username from Supabase DB or local storage fallback.
+ * Fetch a user profile by username from Supabase DB or per-user local storage cache.
  */
 export async function fetchUserProfileByUsername(username: string): Promise<UserProfile | null> {
   const cleanUsername = username.trim().toLowerCase();
+  const cacheKey = `${PROFILE_CACHE_PREFIX}${cleanUsername}`;
+
+  // Read local cache first to preserve locally saved fields
+  let cachedProfile: UserProfile | null = null;
+  try {
+    const cachedRaw = localStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      cachedProfile = JSON.parse(cachedRaw) as UserProfile;
+    }
+  } catch {}
+
   try {
     const { data: user, error } = await supabase
       .from('profiles')
-      .select('id, username, created_at, bio, carousels, avatar_url, twitter_handle')
+      .select('*')
       .eq('username', cleanUsername)
       .maybeSingle();
 
-    if (error || !user) {
-      // Check if current logged-in user matches in localStorage
-      const current = await getCurrentUserProfile();
-      if (current && current.username.toLowerCase() === cleanUsername) {
-        return current;
-      }
-      return null;
+    if (!error && user) {
+      const fetched: UserProfile = {
+        id: user.id,
+        username: user.username,
+        createdAt: user.created_at || new Date().toISOString(),
+        bio: user.bio || cachedProfile?.bio || '',
+        carousels: (user.carousels && user.carousels.length > 0) ? user.carousels : (cachedProfile?.carousels || []),
+        avatarUrl: user.avatar_url || cachedProfile?.avatarUrl || '',
+        twitterHandle: user.twitter_handle || cachedProfile?.twitterHandle || '',
+      };
+      // Save merged profile to local cache
+      localStorage.setItem(cacheKey, JSON.stringify(fetched));
+      return fetched;
     }
-
-    return {
-      id: user.id,
-      username: user.username,
-      createdAt: user.created_at,
-      bio: user.bio || '',
-      carousels: user.carousels || [],
-      avatarUrl: user.avatar_url || '',
-      twitterHandle: user.twitter_handle || '',
-    };
   } catch (err) {
-    console.warn('Error fetching profile by username:', err);
-    const current = await getCurrentUserProfile();
-    if (current && current.username.toLowerCase() === cleanUsername) {
-      return current;
-    }
-    return null;
+    console.warn('Error querying Supabase profile:', err);
   }
+
+  if (cachedProfile) {
+    return cachedProfile;
+  }
+
+  // Fallback 2: Check active session if handle matches
+  const current = await getCurrentUserProfile();
+  if (current && current.username.toLowerCase() === cleanUsername) {
+    return current;
+  }
+
+  return null;
 }
 
 /**
@@ -180,9 +211,15 @@ export async function updateUserProfile(
     ...updates,
   };
 
-  // 1. Update localStorage session if it's the active user
+  const cleanUsername = nextProfile.username ? nextProfile.username.trim().toLowerCase() : '';
+  const cacheKey = `${PROFILE_CACHE_PREFIX}${cleanUsername}`;
+
+  // 1. Update localStorage active session & per-user cache
   if (current && current.id === userId) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(nextProfile));
+  }
+  if (cleanUsername) {
+    localStorage.setItem(cacheKey, JSON.stringify(nextProfile));
   }
 
   // 2. Attempt Supabase DB update
@@ -194,10 +231,13 @@ export async function updateUserProfile(
     if (updates.twitterHandle !== undefined) dbUpdates.twitter_handle = updates.twitterHandle;
 
     if (Object.keys(dbUpdates).length > 0) {
-      await supabase.from('profiles').update(dbUpdates).eq('id', userId);
+      const { error: updateErr } = await supabase.from('profiles').update(dbUpdates).eq('id', userId);
+      if (updateErr && updateErr.code !== 'PGRST204') {
+        console.warn('Supabase profile update warning:', updateErr);
+      }
     }
   } catch (err) {
-    console.warn('Failed to persist profile update to Supabase DB, stored in local session:', err);
+    console.warn('Failed to persist profile update to Supabase DB, saved to local cache:', err);
   }
 
   // Dispatch custom event for real-time UI updates

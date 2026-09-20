@@ -2,9 +2,9 @@
 
 ## 📌 Overview
 
-The **Header Navigation Bar** ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)) provides the top-level URL-style navigation and brand bar for OOMFS. It sits as a frameless, transparent overlay above the 3D WebGL canvas engine.
+The **Header Navigation Bar** ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)) provides top-level brand and profile navigation for OOMFS. It sits as a frameless, transparent overlay (`fixed top-4 left-4 right-4 z-40 pointer-events-none`) persistently visible across the 3D Sphere Map, Code Galaxy, and Member Profile pages.
 
-It features a minimalist, compact monospace URL brand string (`oomfs.org/{owner}`) with dual-segment routing and active-tab toggle support.
+It features a single big bold brand button (`oomfs.org`), a floating dot separator (`•`), the active sphere host handle (`@sphereowner`), and a direct link to the user's account profile (`@yourhandle`).
 
 ---
 
@@ -13,7 +13,7 @@ It features a minimalist, compact monospace URL brand string (`oomfs.org/{owner}
 **Component File**: [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx)
 
 ```tsx
-export type NavigationTab = 'galaxy' | 'map' | 'owner' | 'member';
+export type NavigationTab = 'galaxy' | 'map' | 'owner' | 'member' | 'studio';
 
 interface HeaderProps {
   activeTab: NavigationTab;                       // Currently active page view tab
@@ -26,35 +26,39 @@ interface HeaderProps {
 
 ---
 
-## 🧭 Interactive URL Navigation & Routing Specification
+## 🧭 Interactive Navigation Specification
 
-The top-left navigation branding presents a frameless URL string formatted as `oomfs.org/{owner}` (e.g. `oomfs.org/oprah`).
+The header navigation presents a split layout: `oomfs.org • @sphereowner` on the left and `@yourhandle` on the far right.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  oomfs.org/                                         oprah   │
-│  [Code Galaxy View / Toggle]          [Profile View / Toggle]│
+│  oomfs.org  •  @oprah                             @yourname │
+│  [Galaxy View] [Sphere Owner]                 [My Profile]  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1. `oomfs.org/` Brand Segment
-- **Display String**: `oomfs.org/`
+### 1. Left Side: `oomfs.org` Brand Segment
+- **Display String**: `oomfs.org` (without trailing slash).
 - **Target Page**: **3D Code Galaxy Constellation View** (`activeTab = 'galaxy'`).
-- **Active State Indicator**: Cyan underline decoration (`underline underline-offset-4 decoration-cyan-400`).
-- **Toggle Invariant**:
+- **Active State Indicator**: Blue underline decoration (`underline underline-offset-4 decoration-blue-500`).
+- **Toggle Navigation**:
   - If `activeTab !== 'galaxy'`: Clicking opens the 3D Code Galaxy view.
   - If `activeTab === 'galaxy'`: Clicking toggles back to the **3D Sphere Map** (`activeTab = 'map'`).
 
-### 2. `{owner}` Segment (e.g. `oprah`)
-- **Display String Resolution**:
-  1. Primary: `activeSphereOwnerName` (the owner handle of the sphere planet currently being viewed on the globe).
-  2. Fallback: `user?.username` (signed-in account handle).
-  3. Ultimate Fallback: `'oprah'`.
-  4. Sanitization: Strips leading `@` and replaces spaces with hyphens (`replace(/^@/, '').toLowerCase().replace(/\s+/g, '-')`).
+### 2. Left Side: `• @sphereowner` Link
+- **Display Handle**: Handle of the sphere owner currently displayed on the 3D globe (`activeSphereOwnerName`, fallback to signed in user or `'oprah'`).
+- **Typography & Color**: Rendered in sharp black font text (`text-slate-900 font-black`) for high contrast readability over bright and sky atmospheric backdrops.
 - **Target Page & Toggle Navigation**:
-  - Rendered as a clean, crisp clickable button (`<button>`).
-  - Clicking `{owner}` opens the Member Profile Page (`activeTab = 'member'`).
-  - Re-clicking `{owner}` while on the Member Profile Page toggles back to the 3D Sphere Map (`activeTab = 'map'`).
+  - Rendered as a font-black clickable button (`<button>`).
+  - If on 3D Sphere Map or Galaxy page: Clicking `@{sphereowner}` opens that owner's profile page (`activeTab = 'owner'`).
+  - If on Member or Owner Profile page: Clicking `@{sphereowner}` returns to the **3D Sphere Map** (`activeTab = 'map'`).
+
+### 3. Far Right Side: `@{yourname}` Account Profile Link
+- **Display Handle**: Handle of the signed-in user account (`user?.username`, fallback to `'oprah'`).
+- **Target Page & Toggle Navigation**:
+  - Rendered on the far right of the header bar.
+  - If `activeTab !== 'member'`: Clicking `@{yourname}` opens the signed-in account profile page (`activeTab = 'member'`).
+  - If `activeTab === 'member'`: Clicking `@{yourname}` toggles back to the **3D Sphere Map** (`activeTab = 'map'`).
 
 ---
 
@@ -68,9 +72,7 @@ The top-left navigation branding presents a frameless URL string formatted as `o
 ## ⚡ Extension Guidelines for AI Agents
 
 1. **Frameless Aesthetic**:
-   - Keep the outer header wrapper `pointer-events-none` with `pointer-events-auto` on interactive typography buttons.
+   - Keep the outer header wrapper `fixed top-4 left-4 right-4 z-40 pointer-events-none` with `pointer-events-auto` on interactive typography buttons.
    - Do NOT wrap the URL text in heavy background panels or borders.
 2. **Toggle Behavior Invariant**:
    - Always preserve the toggle-back-to-map behavior when an active tab segment is re-clicked.
-3. **Owner Display Resolution Invariant**:
-   - `activeSphereOwnerName` MUST be prioritized for the `{owner}` display segment so the URL accurately reflects the orb being viewed on the canvas.

@@ -9,7 +9,7 @@ interface MapCanvasProps {
   users: UserAccount[];
   tiles: Region[];
   onSelectUser: (id: number | null) => void;
-  onHoverUser: (id: number | null) => void;
+  onHoverUser: (id: number | null, pos?: { x: number; y: number }) => void;
 }
 
 export const MapCanvas: React.FC<MapCanvasProps> = ({
@@ -41,10 +41,56 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    // Scene: Pristine White Ceramic Studio Background (Zero Scene Fog!)
+    // 1. Scene Setup: Calm Blue Sky Atmospheric Skysphere
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#f8fafc');
     sceneRef.current = scene;
+
+    // Calm Blue Sky Shader Skysphere (Floating in atmosphere, no black bottom, zero rings)
+    const skysphereGeo = new THREE.SphereGeometry(500, 64, 32);
+    const skysphereMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: {
+        topColor: { value: new THREE.Color('#0c4a6e') },      // Deep Calm Azure Zenith
+        midColor: { value: new THREE.Color('#0284c7') },      // Cerulean Sky Blue
+        horizonColor: { value: new THREE.Color('#bae6fd') },  // Soft Hazy Pastel Horizon Light
+        bottomColor: { value: new THREE.Color('#0369a1') },   // Calm Lower Atmosphere Blue (No Black!)
+      },
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vWorldPosition;
+        uniform vec3 topColor;
+        uniform vec3 midColor;
+        uniform vec3 horizonColor;
+        uniform vec3 bottomColor;
+
+        void main() {
+          float h = normalize(vWorldPosition).y;
+          vec3 finalColor;
+
+          if (h > 0.0) {
+            float mixFactor = smoothstep(0.0, 0.7, h);
+            finalColor = mix(horizonColor, topColor, mixFactor);
+            float skyFactor = sin(smoothstep(0.0, 0.9, h) * 3.14159);
+            finalColor = mix(finalColor, midColor, skyFactor * 0.35);
+          } else {
+            float mixFactor = smoothstep(0.0, -0.8, h);
+            finalColor = mix(horizonColor, bottomColor, mixFactor);
+          }
+
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `,
+    });
+    const skysphereMesh = new THREE.Mesh(skysphereGeo, skysphereMat);
+    scene.add(skysphereMesh);
 
     // 3D Perspective Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -102,11 +148,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     scene.add(mesh);
     meshRef.current = mesh;
 
-    // 100% Crisp Blender-style 3D Grid Floor (Zero fog, zero haze, crisp solid grid lines)
-    const gridHelper = new THREE.GridHelper(1000, 200, 0x94a3b8, 0xcbd5e1);
-    gridHelper.position.y = -3.2;
-    scene.add(gridHelper);
-
     // Resize Handler
     const handleResize = () => {
       if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
@@ -127,7 +168,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       const currentSettings = settingsRef.current;
 
-      // Auto Rotation
+      // Auto Rotation for sphere globe
       if (currentSettings.autoRotate && meshRef.current) {
         meshRef.current.rotation.y += 0.003;
       }
@@ -193,7 +234,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     }
   }, []);
 
+  const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
   // 4. Pointer Raycasting on Native 3D Sphere Surface
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+  };
+
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!containerRef.current || !cameraRef.current || !meshRef.current || tiles.length === 0) return;
 
@@ -211,7 +258,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
       const foundTile = findTileByUV(u, v, tiles);
       if (foundTile) {
-        onHoverUser(foundTile.ownerUserId);
+        onHoverUser(foundTile.ownerUserId, { x: e.clientX, y: e.clientY });
         return;
       }
     }
@@ -220,6 +267,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    // Ignore click if the mouse moved more than 5px (drag/orbit gesture)
+    const dx = e.clientX - pointerDownPosRef.current.x;
+    const dy = e.clientY - pointerDownPosRef.current.y;
+    const dragDistance = Math.hypot(dx, dy);
+    if (dragDistance > 5) return;
+
     if (!containerRef.current || !cameraRef.current || !meshRef.current || tiles.length === 0) return;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -248,6 +301,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     <div
       ref={containerRef}
       className="absolute inset-0 z-0 w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
+      onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onClick={handleClick}
     />

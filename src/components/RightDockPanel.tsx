@@ -139,31 +139,18 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 
   return (
     <>
-      {/* Toggle Button when Collapsed */}
-      {!isOpen && (
-        <button
-          onClick={() => onUpdateSettings({ showRightPanel: true })}
-          className="fixed top-20 right-4 z-30 p-2.5 rounded-2xl glass-panel text-cyan-400 hover:text-white border border-cyan-500/30 shadow-2xl flex items-center gap-2 hover:bg-slate-800/80 transition-all group"
-          title="Open Control Dock"
-        >
-          <Sliders className="w-5 h-5 text-cyan-400 group-hover:rotate-45 transition-transform duration-300" />
-          <span className="text-xs font-bold font-mono tracking-wider pr-1">DOCK</span>
-          <ChevronLeft className="w-4 h-4 text-slate-400" />
-        </button>
-      )}
-
       {/* Main Right Dock Slide Panel */}
       <aside
-        className={`fixed top-16 right-0 bottom-0 z-30 w-96 max-w-full glass-panel border-l border-slate-800 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-20 right-4 bottom-6 z-30 w-96 max-w-[calc(100vw-2rem)] backdrop-blur-2xl bg-black/95 border border-white/20 rounded-3xl shadow-2xl shadow-black flex flex-col transition-all duration-300 ease-out overflow-hidden text-white ${
+          isOpen ? 'translate-x-0 opacity-100' : 'translate-x-[calc(100%+2rem)] opacity-0 pointer-events-none'
         }`}
       >
         {/* Top Header & Tab Selector */}
-        <div className="p-3 border-b border-slate-800/90 bg-slate-950/80 flex flex-col gap-2.5">
+        <div className="p-3.5 border-b border-zinc-800 bg-zinc-950 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
-                <Sliders className="w-4 h-4 text-cyan-400" />
+              <div className="p-1.5 rounded-xl bg-white text-black border border-white shadow-md">
+                <Sliders className="w-4 h-4" />
               </div>
               <h2 className="text-xs font-bold text-white tracking-wide uppercase font-mono">
                 Control & Inspector Dock
@@ -172,7 +159,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 
             <button
               onClick={() => onUpdateSettings({ showRightPanel: false })}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
               title="Collapse Dock"
             >
               <ChevronRight className="w-4 h-4" />
@@ -180,42 +167,42 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
           </div>
 
           {/* 3 Main Navigation Tabs */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-3 gap-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
             <button
               onClick={() => onUpdateSettings({ activePanelTab: 'config' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'config'
-                  ? 'bg-blue-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-white text-black shadow-md font-extrabold'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              <Globe className="w-3.5 h-3.5 text-cyan-300" />
+              <Globe className="w-3.5 h-3.5" />
               <span>Config</span>
             </button>
 
             <button
               onClick={() => onUpdateSettings({ activePanelTab: 'allocator' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'allocator'
-                  ? 'bg-blue-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-white text-black shadow-md font-extrabold'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              <PieChart className="w-3.5 h-3.5 text-emerald-300" />
+              <PieChart className="w-3.5 h-3.5" />
               <span>Allocator</span>
             </button>
 
             <button
               onClick={() => onUpdateSettings({ activePanelTab: 'inspector' })}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'inspector'
-                  ? 'bg-blue-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-white text-black shadow-md font-extrabold'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              <Target className="w-3.5 h-3.5 text-purple-300" />
+              <Target className="w-3.5 h-3.5" />
               <span>Inspect</span>
-              {activeUser && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+              {activeUser && <span className="w-2 h-2 rounded-full bg-white animate-pulse" />}
             </button>
           </div>
         </div>
@@ -225,12 +212,12 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
             
             {!isSphereOwner && (
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
-                <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-3 rounded-2xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs flex items-start gap-2.5">
+                <Lock className="w-4 h-4 text-white shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">View-Only Mode</span>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Only the sphere owner (<strong className="text-amber-300">{activeSphereOwnerName}</strong>) can change grid resolution, mapping mode, themes, or seeds.
+                  <span className="font-bold text-white">View-Only Mode</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                    Only the sphere owner (<strong className="text-white">{activeSphereOwnerName}</strong>) can change grid resolution, mapping mode, themes, or seeds.
                   </p>
                 </div>
               </div>
@@ -238,11 +225,11 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 
             {/* 0. Mapping Mode Switcher */}
             <div className={`flex flex-col gap-2 ${!isSphereOwner ? 'pointer-events-none opacity-50' : ''}`}>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <span className="flex items-center gap-1.5 text-purple-400">
+              <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                <span className="flex items-center gap-1.5 text-white">
                   <Globe className="w-4 h-4" /> Mapping Paradigm
                 </span>
-                <span className="font-mono text-purple-300 font-bold px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[11px]">
+                <span className="font-mono text-white font-bold px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[11px]">
                   {settings.mappingMode === 'discrete_1to1' ? '1:1 Fair Mode' : 'Conquest Mode'}
                 </span>
               </div>
@@ -252,44 +239,44 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   onClick={() => onUpdateSettings({ mappingMode: 'conquest', selectedUserId: null })}
                   className={`p-2 rounded-xl text-xs font-bold transition-all border flex flex-col items-center gap-0.5 text-center ${
                     settings.mappingMode === 'conquest'
-                      ? 'bg-blue-600/30 border-blue-500 text-white shadow-md'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-black border-white shadow-md font-extrabold'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
                   }`}
                 >
-                  <div className="flex items-center gap-1 text-blue-400 font-extrabold">
+                  <div className="flex items-center gap-1 font-extrabold">
                     <Sliders className="w-3.5 h-3.5" />
                     <span>Conquest</span>
                   </div>
-                  <span className="text-[9px] font-normal text-slate-400">Variable % Clusters</span>
+                  <span className="text-[9px] font-normal opacity-80">Variable % Clusters</span>
                 </button>
 
                 <button
                   onClick={() => onUpdateSettings({ mappingMode: 'discrete_1to1', selectedUserId: null })}
                   className={`p-2 rounded-xl text-xs font-bold transition-all border flex flex-col items-center gap-0.5 text-center ${
                     settings.mappingMode === 'discrete_1to1'
-                      ? 'bg-emerald-600/30 border-emerald-500 text-white shadow-md'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-black border-white shadow-md font-extrabold'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
                   }`}
                 >
-                  <div className="flex items-center gap-1 text-emerald-400 font-extrabold">
+                  <div className="flex items-center gap-1 font-extrabold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>1:1 Equal</span>
                   </div>
-                  <span className="text-[9px] font-normal text-slate-400">1 Tile / User (Fair 1/N)</span>
+                  <span className="text-[9px] font-normal opacity-80">1 Tile / User (Fair 1/N)</span>
                 </button>
               </div>
             </div>
 
-            <hr className="border-slate-800" />
+            <hr className="border-zinc-800" />
 
             {/* 1. Grid Resolution Picker (Conquest Mode) or 1:1 Mode Info */}
             {settings.mappingMode === 'conquest' ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                  <span className="flex items-center gap-1.5 text-blue-400">
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                  <span className="flex items-center gap-1.5 text-white">
                     <Grid className="w-4 h-4" /> Grid Resolution
                   </span>
-                  <span className="font-mono text-cyan-300 font-bold px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[11px]">
+                  <span className="font-mono text-white font-bold px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[11px]">
                     {settings.gridResolution} Quads
                   </span>
                 </div>
@@ -301,47 +288,47 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                       onClick={() => onUpdateSettings({ gridResolution: res, selectedUserId: null })}
                       className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all font-mono border ${
                         settings.gridResolution === res
-                          ? 'bg-blue-600/90 border-blue-400 text-white shadow-md shadow-blue-500/20'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                          ? 'bg-white text-black border-white shadow-md font-black'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white'
                       }`}
                     >
                       {res}
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
+                <p className="text-[11px] text-zinc-400 leading-snug">
                   {settings.gridResolution === 512 || settings.gridResolution === 2048
                     ? '1:1 Square quad tiles across 3D sphere.'
                     : 'High density quad grid geometry.'}
                 </p>
               </div>
             ) : (
-              <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-500/30 flex flex-col gap-1 text-xs">
-                <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> 1:1 Fair Distribution Active
+              <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-700 flex flex-col gap-1 text-xs">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-white" /> 1:1 Fair Distribution Active
                 </span>
-                <p className="text-[11px] text-slate-400 leading-snug">
+                <p className="text-[11px] text-zinc-400 leading-snug">
                   Globe surface is divided into exactly <strong>{settings.userCount} equal partition tiles</strong>. Every user owns 1 discrete tile (<strong>{(100 / settings.userCount).toFixed(1)}% area</strong>).
                 </p>
               </div>
             )}
 
-            <hr className="border-slate-800" />
+            <hr className="border-zinc-800" />
 
             {/* 2. Active User Accounts (Typed + Presets) */}
             <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <span className="flex items-center gap-1.5 text-indigo-400">
+              <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                <span className="flex items-center gap-1.5 text-white">
                   <Users className="w-4 h-4" /> Active Accounts (U)
                 </span>
-                <span className="font-mono text-indigo-300 font-bold text-xs">
+                <span className="font-mono text-white font-bold text-xs">
                   U = {settings.userCount}
                 </span>
               </div>
 
               {/* Typed Input Field */}
               <div className="flex items-center gap-2">
-                <label className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                <label className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">
                   Custom U:
                 </label>
                 <input
@@ -354,12 +341,12 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   onKeyDown={e => {
                     if (e.key === 'Enter') handleUserCountSubmit(typedUserCount);
                   }}
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-mono text-cyan-300 font-bold focus:outline-none focus:border-indigo-500 transition-all"
+                  className="w-full px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-mono text-white font-bold focus:outline-none focus:border-white transition-all"
                   placeholder="Enter user count..."
                 />
                 <button
                   onClick={() => handleUserCountSubmit(typedUserCount)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md"
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition-all shadow-md"
                 >
                   Set
                 </button>
@@ -376,8 +363,8 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                     }}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all font-mono ${
                       settings.userCount === preset
-                        ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400'
-                        : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-white text-black border-white shadow-md font-black'
+                        : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'
                     }`}
                   >
                     {preset} U
@@ -386,12 +373,12 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
               </div>
             </div>
 
-            <hr className="border-slate-800" />
+            <hr className="border-zinc-800" />
 
             {/* 3. Visual Themes */}
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <span className="flex items-center gap-1.5 text-pink-400">
+              <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                <span className="flex items-center gap-1.5 text-white">
                   <Palette className="w-4 h-4" /> Visual Theme
                 </span>
               </div>
@@ -403,8 +390,8 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                     onClick={() => onUpdateSettings({ theme: t.id })}
                     className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium transition-all border ${
                       settings.theme === t.id
-                        ? 'border-pink-500/80 bg-pink-500/10 text-white font-semibold shadow-md'
-                        : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        ? 'border-white bg-zinc-800 text-white font-bold shadow-md ring-1 ring-white/50'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                     }`}
                   >
                     <span className={`w-3 h-3 rounded-full bg-gradient-to-r ${t.color}`} />
@@ -414,18 +401,18 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
               </div>
             </div>
 
-            <hr className="border-slate-800" />
+            <hr className="border-zinc-800" />
 
             {/* 4. Display Toggles & Seed Action */}
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-slate-300">Display Controls</span>
+              <span className="text-xs font-semibold text-zinc-300">Display Controls</span>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => onUpdateSettings({ autoRotate: !settings.autoRotate })}
                   className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all ${
                     settings.autoRotate
-                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-black border-white font-bold'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <RotateCw className={`w-3.5 h-3.5 ${settings.autoRotate ? 'animate-spin' : ''}`} />
@@ -436,8 +423,8 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   onClick={() => onUpdateSettings({ showGrid: !settings.showGrid })}
                   className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all ${
                     settings.showGrid
-                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-white text-black border-white font-bold'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <Grid className="w-3.5 h-3.5" />
@@ -447,9 +434,9 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 
               <button
                 onClick={onResetSeed}
-                className="mt-1 w-full py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                className="mt-1 w-full py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                <RefreshCw className="w-3.5 h-3.5 text-white" />
                 <span>Re-Seed Territory Clusters</span>
               </button>
             </div>
@@ -462,38 +449,38 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
           <div className="flex-1 overflow-hidden flex flex-col">
             
             {!isSphereOwner && (
-              <div className="p-3 m-3 mb-0 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
-                <Lock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-3 m-3 mb-0 rounded-2xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs flex items-start gap-2.5">
+                <Lock className="w-4 h-4 text-white shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">View-Only Mode</span>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Only the sphere owner (<strong className="text-amber-300">{activeSphereOwnerName}</strong>) can change area allocations or tile textures.
+                  <span className="font-bold text-white">View-Only Mode</span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                    Only the sphere owner (<strong className="text-white">{activeSphereOwnerName}</strong>) can change area allocations or tile textures.
                   </p>
                 </div>
               </div>
             )}
             
             {/* Presets Bar & Search */}
-            <div className={`p-3 border-b border-slate-800 flex flex-col gap-2 bg-slate-950/40 ${!isSphereOwner ? 'pointer-events-none opacity-50' : ''}`}>
+            <div className={`p-3 border-b border-zinc-800 flex flex-col gap-2 bg-zinc-950 ${!isSphereOwner ? 'pointer-events-none opacity-50' : ''}`}>
               {settings.mappingMode === 'discrete_1to1' ? (
-                <div className="bg-emerald-950/50 p-2 rounded-xl border border-emerald-500/30 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <div className="bg-zinc-900 p-2 rounded-xl border border-zinc-700 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 text-white font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                     <span>1:1 Mode: Equal 1/N Area ({ (100 / users.length).toFixed(1) }%)</span>
                   </div>
                   <button
                     onClick={() => onUpdateSettings({ mappingMode: 'conquest' })}
-                    className="px-2 py-0.5 rounded bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-bold text-[10px] transition-all"
+                    className="px-2 py-0.5 rounded bg-white text-black font-bold text-[10px] transition-all hover:bg-zinc-200"
                   >
                     Custom Sliders
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                  <div className="flex items-center justify-between text-xs text-zinc-300 font-medium">
                     <span>{users.length} Active Accounts</span>
-                    <span className="text-emerald-400 font-mono font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
+                    <span className="text-white font-mono font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
                       {totalShareSum.toFixed(1)}% Total
                     </span>
                   </div>
@@ -501,25 +488,25 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   <div className="grid grid-cols-3 gap-1.5">
                     <button
                       onClick={onEqualizeShares}
-                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-800 transition-all"
+                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold bg-zinc-900 hover:bg-white hover:text-black text-white border border-zinc-700 transition-all"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 text-blue-400" />
+                      <RotateCcw className="w-3.5 h-3.5" />
                       Equalize
                     </button>
 
                     <button
                       onClick={onParetoShares}
-                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-800 transition-all"
+                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold bg-zinc-900 hover:bg-white hover:text-black text-white border border-zinc-700 transition-all"
                     >
-                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      <Zap className="w-3.5 h-3.5" />
                       Pareto
                     </button>
 
                     <button
                       onClick={onRandomizeShares}
-                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-800 transition-all"
+                      className="flex items-center justify-center gap-1 p-2 rounded-xl text-[11px] font-bold bg-zinc-900 hover:bg-white hover:text-black text-white border border-zinc-700 transition-all"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                      <RefreshCw className="w-3.5 h-3.5" />
                       Randomize
                     </button>
                   </div>
@@ -527,13 +514,13 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
               )}
 
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   placeholder="Search accounts..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-all"
                 />
               </div>
             </div>
@@ -550,29 +537,29 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                     onClick={() => onSelectUser(user.id)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 ${
                       isSelected
-                        ? 'bg-blue-600/15 border-blue-500 shadow-md shadow-blue-500/10'
-                        : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800/80'
+                        ? 'bg-zinc-900 border-white text-white shadow-md ring-1 ring-white/50'
+                        : 'bg-zinc-950 hover:bg-zinc-900 border-zinc-800'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold text-slate-500 w-6">
+                        <span className="text-[10px] font-mono font-bold text-zinc-400 w-6">
                           #{userIdx + 1}
                         </span>
 
                         <span
-                          className="w-3 h-3 rounded-full ring-2 ring-white/10"
+                          className="w-3 h-3 rounded-full ring-2 ring-white/30"
                           style={{ backgroundColor: user.color }}
                         />
 
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-bold text-white">{user.name}</span>
-                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-800 text-slate-400">
+                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                               {user.code}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-medium">
+                          <span className="text-[10px] text-zinc-400 font-medium">
                             {user.category} • {user.tileCount} tiles
                           </span>
                         </div>
@@ -584,7 +571,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                             <img
                               src={user.customImage}
                               alt="Tile Texture"
-                              className="w-5 h-5 rounded object-cover ring-1 ring-cyan-400/50"
+                              className="w-5 h-5 rounded object-cover ring-1 ring-white/50"
                             />
                             <button
                               title="Remove custom tile image"
@@ -593,7 +580,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                                 if (onUploadUserImageFile) onUploadUserImageFile(user.id, undefined);
                                 else if (onUploadUserImage) onUploadUserImage(user.id, undefined);
                               }}
-                              className="p-1 rounded bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all"
+                              className="p-1 rounded bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-all"
                             >
                               <ImageMinus className="w-3 h-3" />
                             </button>
@@ -602,7 +589,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                           <label
                             title="Upload tile texture image"
                             onClick={(e) => e.stopPropagation()}
-                            className="p-1 px-1.5 rounded bg-slate-800/80 hover:bg-blue-600/30 text-slate-400 hover:text-blue-400 border border-slate-700/60 cursor-pointer transition-all flex items-center gap-1"
+                            className="p-1 px-1.5 rounded bg-zinc-800 hover:bg-white hover:text-black text-zinc-300 border border-zinc-700 cursor-pointer transition-all flex items-center gap-1"
                           >
                             <ImagePlus className="w-3 h-3" />
                             <input
@@ -628,10 +615,10 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                         )}
 
                         <div className="text-right">
-                          <span className="text-xs font-bold font-mono text-cyan-300">
+                          <span className="text-xs font-bold font-mono text-white">
                             {user.targetShare.toFixed(1)}%
                           </span>
-                          <span className="block text-[9px] text-slate-500 font-mono">
+                          <span className="block text-[9px] text-zinc-400 font-mono">
                             {user.actualShare}% act
                           </span>
                         </div>
@@ -648,7 +635,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                         value={user.targetShare}
                         onChange={e => handleSliderChange(userIdx, parseFloat(e.target.value))}
                         onClick={e => e.stopPropagation()}
-                        className="w-full accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                        className="w-full accent-white h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
                       />
                     )}
                   </div>
@@ -670,22 +657,22 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                       <img
                         src={activeUser.customImage}
                         alt="Avatar"
-                        className="w-7 h-7 rounded-full object-cover ring-2 ring-cyan-400/80 shadow-md"
+                        className="w-7 h-7 rounded-full object-cover ring-2 ring-white shadow-md"
                       />
                     ) : (
                       <span
-                        className="w-5 h-5 rounded-full ring-2 ring-white/20 shadow-md"
+                        className="w-5 h-5 rounded-full ring-2 ring-white/40 shadow-md"
                         style={{ backgroundColor: activeUser.color }}
                       />
                     )}
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-bold text-white tracking-wide">{activeUser.name}</h3>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700">
                           {activeUser.code}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                      <p className="text-[11px] text-zinc-400 font-medium flex items-center gap-1 mt-0.5">
                         <TagPill category={activeUser.category} />
                         <span>•</span>
                         <span>Account #{activeUser.id}</span>
@@ -696,7 +683,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   {!isHoveredOnly && (
                     <button
                       onClick={() => onSelectUser(null)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                      className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
                       title="Clear Selection"
                     >
                       <X className="w-4 h-4" />
@@ -704,19 +691,19 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                   )}
                 </div>
 
-                <hr className="border-slate-800" />
+                <hr className="border-zinc-800" />
 
                 {/* Custom Tile Image Upload Box */}
-                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+                <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {activeUser.customImage ? (
                       <img
                         src={activeUser.customImage}
                         alt="Tile Texture"
-                        className="w-7 h-7 rounded-lg object-cover ring-1 ring-cyan-400/50"
+                        className="w-7 h-7 rounded-lg object-cover ring-1 ring-white"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500">
+                      <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400">
                         <ImagePlus className="w-4 h-4" />
                       </div>
                     )}
@@ -724,7 +711,7 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                       <span className="text-xs font-semibold text-white block">
                         {activeUser.customImage ? 'Custom Tile Image' : 'Tile Image Texture'}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-[10px] text-zinc-400 font-mono">
                         {activeUser.customImage ? `Spread across ${activeUser.tileCount} tiles` : 'Upload image to repeat 1 per tile'}
                       </span>
                     </div>
@@ -737,14 +724,14 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
                           if (onUploadUserImageFile) onUploadUserImageFile(activeUser.id, undefined);
                           else if (onUploadUserImage) onUploadUserImage(activeUser.id, undefined);
                         }}
-                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-medium flex items-center gap-1 transition-all"
+                        className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 border border-red-500/40 text-xs font-bold flex items-center gap-1 transition-all"
                       >
                         <ImageMinus className="w-3.5 h-3.5" />
                         <span>Clear</span>
                       </button>
                     ) : (
-                      <label className="p-1.5 px-2.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all">
-                        <ImagePlus className="w-3.5 h-3.5 text-blue-400" />
+                      <label className="p-1.5 px-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black border border-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all">
+                        <ImagePlus className="w-3.5 h-3.5" />
                         <span>Upload</span>
                         <input
                           type="file"
@@ -772,69 +759,68 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1">
-                    <span className="flex items-center gap-1 text-slate-400 text-[11px]">
-                      <Box className="w-3 h-3 text-blue-400" /> Owned Tiles
+                  <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1">
+                    <span className="flex items-center gap-1 text-zinc-400 text-[11px]">
+                      <Box className="w-3 h-3 text-white" /> Owned Tiles
                     </span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-lg font-bold font-mono text-white">{activeUser.tileCount}</span>
-                      <span className="text-[10px] text-slate-400">tiles</span>
+                      <span className="text-[10px] text-zinc-400">tiles</span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1">
-                    <span className="flex items-center gap-1 text-slate-400 text-[11px]">
-                      <Target className="w-3 h-3 text-emerald-400" /> Globe Share
+                  <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1">
+                    <span className="flex items-center gap-1 text-zinc-400 text-[11px]">
+                      <Target className="w-3 h-3 text-white" /> Globe Share
                     </span>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold font-mono text-emerald-300">{activeUser.actualShare}</span>
-                      <span className="text-[10px] text-slate-400">% area</span>
+                      <span className="text-lg font-bold font-mono text-white">{activeUser.actualShare}</span>
+                      <span className="text-[10px] text-zinc-400">% area</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Metric Score Bar */}
-                <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-slate-400 text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <Activity className="w-3 h-3 text-cyan-400" /> Metric Score
+                <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-zinc-300 text-[11px]">
+                    <span className="flex items-center gap-1 font-semibold text-white">
+                      <Activity className="w-3.5 h-3.5 text-white" /> Metric Score
                     </span>
-                    <span className="text-cyan-300 font-mono font-bold">{activeUser.value}%</span>
+                    <span className="text-white font-mono font-bold">{activeUser.value}%</span>
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-500"
+                      className="h-full bg-white rounded-full transition-all duration-500"
                       style={{
                         width: `${activeUser.value}%`,
-                        backgroundColor: activeUser.color,
                       }}
                     />
                   </div>
                 </div>
 
                 {/* 3D Vector Coordinates Box */}
-                <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1 font-mono text-[11px]">
-                  <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex flex-col gap-1 font-mono text-[11px]">
+                  <div className="flex items-center justify-between text-zinc-400 text-[10px]">
                     <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-purple-400" /> Territory 3D Centroid
+                      <MapPin className="w-3 h-3 text-white" /> Territory 3D Centroid
                     </span>
-                    <span className="text-purple-300">
+                    <span className="text-white font-bold">
                       [{activeUser.centroid3D[0].toFixed(2)}, {activeUser.centroid3D[1].toFixed(2)}, {activeUser.centroid3D[2].toFixed(2)}]
                     </span>
                   </div>
                 </div>
 
                 {isHoveredOnly && (
-                  <p className="text-[10px] text-slate-400 text-center italic">
+                  <p className="text-[10px] text-zinc-400 text-center italic">
                     Click territory tile to pin selection
                   </p>
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 gap-2">
-                <Target className="w-8 h-8 text-slate-600 animate-pulse" />
-                <span className="text-xs font-semibold text-slate-400">No Territory Selected</span>
-                <p className="text-[11px] text-slate-500 max-w-xs">
+              <div className="flex flex-col items-center justify-center py-12 text-center text-zinc-500 gap-2">
+                <Target className="w-8 h-8 text-white animate-pulse" />
+                <span className="text-xs font-semibold text-zinc-300">No Territory Selected</span>
+                <p className="text-[11px] text-zinc-400 max-w-xs leading-relaxed">
                   Hover over or click any territory tile on the 3D globe to inspect its account details and coordinates.
                 </p>
               </div>
@@ -847,17 +833,8 @@ export const RightDockPanel: React.FC<RightDockPanelProps> = ({
 };
 
 const TagPill: React.FC<{ category: string }> = ({ category }) => {
-  const colors: Record<string, string> = {
-    Resource: 'text-amber-400 bg-amber-400/10',
-    Urban: 'text-blue-400 bg-blue-400/10',
-    Wilderness: 'text-emerald-400 bg-emerald-400/10',
-    Industrial: 'text-orange-400 bg-orange-400/10',
-    Research: 'text-purple-400 bg-purple-400/10',
-    Transit: 'text-cyan-400 bg-cyan-400/10',
-  };
-
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${colors[category] || 'text-slate-300 bg-slate-800'}`}>
+    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-zinc-800 border border-zinc-700 font-mono">
       {category}
     </span>
   );

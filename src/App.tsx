@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Box, Target, Activity, MapPin, User } from 'lucide-react';
 import { MapSettings, UserAccount, SphereItem } from './types/map';
 import { AuthModalMode, UserProfile } from './types/auth';
 import { onAuthStateChange, signOutUser } from './utils/authService';
@@ -11,7 +12,8 @@ import {
 } from './utils/sphereService';
 import { MapCanvas } from './components/MapCanvas';
 import { Header, NavigationTab } from './components/Header';
-import { RightDockPanel } from './components/RightDockPanel';
+import { FloatingInspectCard } from './components/FloatingInspectCard';
+import { SphereStudioPage } from './components/SphereStudioPage';
 import { CodeGalaxyPage } from './components/CodeGalaxyPage';
 import { SphereOwnerPage } from './components/SphereOwnerPage';
 import { MemberProfilePage } from './components/MemberProfilePage';
@@ -39,7 +41,7 @@ export const App: React.FC = () => {
     autoRotate: false,
     showGrid: true,
     seed: 42,
-    showRightPanel: true,
+    showRightPanel: false,
     activePanelTab: 'config',
   });
 
@@ -238,13 +240,18 @@ export const App: React.FC = () => {
     setSettings(prev => ({
       ...prev,
       selectedUserId: id,
-      showRightPanel: id !== null ? true : prev.showRightPanel,
-      activePanelTab: id !== null ? 'inspector' : prev.activePanelTab,
     }));
   }, []);
 
-  const handleHoverUser = useCallback((id: number | null) => {
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleHoverUser = useCallback((id: number | null, pos?: { x: number; y: number }) => {
     setSettings(prev => ({ ...prev, hoveredUserId: id }));
+    if (pos) {
+      setHoverPos(pos);
+    } else if (id === null) {
+      setHoverPos(null);
+    }
   }, []);
 
   const handleViewMyProfile = useCallback(() => {
@@ -300,62 +307,74 @@ export const App: React.FC = () => {
     handleUpdateShares(normalized);
   }, [settings.userCount, handleUpdateShares]);
 
-  // Active user to show in Inspector
-  const activeUser = useMemo(() => {
+  // Active user to show in Floating Inspect Card (ONLY when actively selected/clicked)
+  const activeInspectUser = useMemo(() => {
     if (settings.selectedUserId !== null) {
       return users.find((u: UserAccount) => u.id === settings.selectedUserId) || null;
     }
-    if (settings.hoveredUserId !== null) {
-      return users.find((u: UserAccount) => u.id === settings.hoveredUserId) || null;
-    }
     return null;
-  }, [users, settings.selectedUserId, settings.hoveredUserId]);
+  }, [users, settings.selectedUserId]);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#f8fafc]">
-      {/* 1. Header Navigation Bar */}
-      <Header
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        user={currentUser}
-        activeSphereOwnerName={activeSphere?.ownerName}
-        onOpenAuthModal={handleOpenAuthModal}
-        onSignOut={handleSignOut}
-        onViewMyProfile={handleViewMyProfile}
-      />
-
-      {/* 2. Background Native 3D Interactive Three.js Sphere Globe Canvas */}
-      <MapCanvas
-        settings={settings}
-        users={users}
-        tiles={tiles}
-        onSelectUser={handleSelectUser}
-        onHoverUser={handleHoverUser}
-      />
-
-      {/* 3. Conditional Page View Rendering */}
-      {activeTab === 'map' && (
-        <RightDockPanel
-          settings={settings}
-          users={users}
-          activeUser={activeUser}
-          isHoveredOnly={settings.selectedUserId === null && settings.hoveredUserId !== null}
-          onUpdateSettings={handleUpdateSettings}
-          onResetSeed={handleResetSeed}
-          onSelectUser={handleSelectUser}
-          onUpdateUserShares={handleUpdateShares}
-          onEqualizeShares={handleEqualizeShares}
-          onParetoShares={handleParetoShares}
-          onRandomizeShares={handleRandomizeShares}
-          onUploadUserImageFile={handleUploadUserImageFile}
-          isSphereOwner={isSphereOwner}
+      {/* 1. Global Header Navigation Bar (Rendered across Sphere, Galaxy, Owner, and Member views) */}
+      {activeTab !== 'studio' && (
+        <Header
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          user={currentUser}
           activeSphereOwnerName={activeSphere?.ownerName}
+          onOpenAuthModal={handleOpenAuthModal}
+          onSignOut={handleSignOut}
+          onViewMyProfile={handleViewMyProfile}
         />
       )}
 
-      {/* Code Galaxy Interactive View */}
+      {/* 2. Background Native 3D Interactive Three.js Sphere Globe Canvas (Rendered ONLY on map view) */}
+      {activeTab === 'map' && (
+        <MapCanvas
+          settings={settings}
+          users={users}
+          tiles={tiles}
+          onSelectUser={handleSelectUser}
+          onHoverUser={handleHoverUser}
+        />
+      )}
+
+      {/* 2.5 Floating Partition Inspect HUD Card (Bottom Right) */}
+      {activeTab === 'map' && activeInspectUser && (
+        <FloatingInspectCard
+          user={activeInspectUser}
+          isPinned={settings.selectedUserId !== null}
+          onClose={() => setSettings(prev => ({ ...prev, selectedUserId: null }))}
+        />
+      )}
+
+      {/* 3. Conditional Dedicated Page View Rendering */}
+
+      {/* Sphere Studio Dedicated Full-Bleed Opaque Page View */}
+      {activeTab === 'studio' && (
+        <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-[#080c14] pointer-events-auto">
+          <SphereStudioPage
+            settings={settings}
+            users={users}
+            onUpdateSettings={handleUpdateSettings}
+            onResetSeed={handleResetSeed}
+            onUpdateUserShares={handleUpdateShares}
+            onEqualizeShares={handleEqualizeShares}
+            onParetoShares={handleParetoShares}
+            onRandomizeShares={handleRandomizeShares}
+            onUploadUserImageFile={handleUploadUserImageFile}
+            isSphereOwner={isSphereOwner}
+            activeSphereOwnerName={activeSphere?.ownerName}
+            onGoToMap={() => setActiveTab('map')}
+          />
+        </div>
+      )}
+
+      {/* Code Galaxy Dedicated Full-Bleed Opaque Page View */}
       {activeTab === 'galaxy' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto">
+        <div className="fixed inset-0 z-30 w-full h-full overflow-hidden bg-[#080c14] pointer-events-auto">
           <CodeGalaxyPage
             spheres={spheres}
             activeSphereId={activeSphereId}
@@ -368,23 +387,28 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Sphere Owner Profile View */}
+      {/* Sphere Owner Host Dedicated Full-Bleed Opaque Profile View */}
       {activeTab === 'owner' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#f8fafc]/90 backdrop-blur-md">
-          <SphereOwnerPage
-            userCount={users.length}
-            tileCount={tiles.length}
+        <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1] pointer-events-auto">
+          <MemberProfilePage
+            currentUser={currentUser}
+            targetUsername={activeSphere?.ownerName || 'oprah'}
             onGoToMap={() => setActiveTab('map')}
+            onOpenSphereStudio={() => setActiveTab('studio')}
+            onOpenAuthModal={handleOpenAuthModal}
+            onSignOut={handleSignOut}
           />
         </div>
       )}
 
-      {/* Account Profile View */}
+      {/* Signed-In Account Dedicated Full-Bleed Opaque Profile View */}
       {activeTab === 'member' && (
-        <div className="absolute inset-0 top-16 z-10 overflow-y-auto bg-[#f8fafc]/90 backdrop-blur-md">
+        <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1] pointer-events-auto">
           <MemberProfilePage
             currentUser={currentUser}
+            targetUsername={currentUser?.username}
             onGoToMap={() => setActiveTab('map')}
+            onOpenSphereStudio={() => setActiveTab('studio')}
             onOpenAuthModal={handleOpenAuthModal}
             onSignOut={handleSignOut}
           />

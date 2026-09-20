@@ -4,10 +4,19 @@ import { ShieldCheck, Server, Globe, Key, Award, ArrowRight, Zap, CheckCircle2 }
 interface SphereOwnerPageProps {
   userCount: number;
   tileCount: number;
+  ownerName?: string;
   onGoToMap: () => void;
 }
 
-export const SphereOwnerPage: React.FC<SphereOwnerPageProps> = ({ userCount, tileCount, onGoToMap }) => {
+export const SphereOwnerPage: React.FC<SphereOwnerPageProps> = ({
+  userCount,
+  tileCount,
+  ownerName = 'oprah',
+  onGoToMap,
+}) => {
+  const displayHandle = ownerName.replace(/^@/, '').toLowerCase().replace(/\s+/g, '-');
+  const avatarInitials = `@${displayHandle.slice(0, 2).toUpperCase()}`;
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center p-6 z-10 overflow-y-auto">
       <div className="max-w-3xl w-full glass-panel p-8 rounded-3xl shadow-2xl border border-indigo-500/30 flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-300">
@@ -18,7 +27,7 @@ export const SphereOwnerPage: React.FC<SphereOwnerPageProps> = ({ userCount, til
             <div className="relative">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 p-0.5 shadow-lg shadow-indigo-500/20">
                 <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-cyan-300 font-bold text-xl">
-                  @OA
+                  {avatarInitials}
                 </div>
               </div>
               <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-full ring-2 ring-slate-950">
@@ -28,7 +37,7 @@ export const SphereOwnerPage: React.FC<SphereOwnerPageProps> = ({ userCount, til
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-extrabold text-white">@oomf_architect</h1>
+                <h1 className="text-xl font-extrabold text-white">@{displayHandle}</h1>
                 <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-indigo-400" />
                   Verified Sphere Host

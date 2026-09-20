@@ -4,13 +4,13 @@
 
 The **Code Galaxy View** is the network-level 3D constellation engine of OOMFS. It visualizes all active 3D community globes floating as 3D planet nodes in an interactive 3D WebGL starfield universe (inspired by *Code Galaxies*).
 
-- **Navigation Trigger**: Accessed via the top-left `"oomfs.org"` brand button or the `Code Galaxy` tab in [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx).
+- **Navigation Trigger**: Accessed via the top-left `"oomfs.org"` brand button in [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx).
 - **Core Capabilities**:
   - Full 3D camera navigation (WASD flight, 360° pitch/yaw mouse look around, screen-space panning, and zoom).
-  - Terminal preset command filters (`/all` as default, `/mine` when authenticated, `/conquest`, `/discrete_1to1`, `/high-res`).
+  - Minimalist floating action button (`"+ Create Sphere"`) in top right below top header.
   - High-performance GPU `InstancedMesh` rendering for scale ($N = 2,500+$ spheres in 3 WebGL draw calls).
-  - Interactive GPU raycasting for inspecting and entering any sphere.
-  - Creator handle attribution & `"🌟 Your Sphere"` indicators in the focused node inspector.
+  - Interactive GPU raycasting with minimalist hover text label (`"/spherename"`).
+  - Double-click 3D raycast interaction to enter any 3D sphere map directly.
   - Login-protected creation modal for spawning new 3D sphere planets directly into galactic space and persisting to Supabase PostgreSQL.
 
 ---
@@ -19,10 +19,9 @@ The **Code Galaxy View** is the network-level 3D constellation engine of OOMFS. 
 
 ```
 CodeGalaxyPage.tsx
- ├── GalaxyCanvas.tsx           (Native Three.js WebGL canvas, InstancedMesh pipeline, 6-DOF Fly controls)
- ├── Top HUD Overlay            (Network statistics, preset command filter dock, Search bar, Create Sphere trigger)
- ├── Floating Controls Banner  (3D navigation & Pan-Look mode instructions)
- ├── Selected Node Inspector    (Bottom-right card showing focused sphere details, owner handle link, "Your Sphere" badge, & "Enter 3D Sphere Map" action)
+ ├── GalaxyCanvas.tsx           (Native Three.js WebGL canvas, InstancedMesh pipeline, 6-DOF Fly controls, dblclick raycasting)
+ ├── Top-Right Action Button    (Floating Create Sphere trigger below header)
+ ├── Cursor Hover Label         (Pure minimalist "/spherename" text floating near mouse cursor on node hover)
  └── Create New Sphere Modal    (Form to configure and spawn a new 3D sphere planet into Supabase, pre-filled with @currentUser.username)
 ```
 
@@ -44,11 +43,11 @@ interface CodeGalaxyPageProps {
 
 ## 🌌 3D WebGL Galaxy Engine ([GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx))
 
-### 1. `InstancedMesh` GPU Pipeline
+### 1. `InstancedMesh` GPU Pipeline & Calm Blue Skybox
 To scale to thousands of items without CPU scene-graph draw call bottlenecking, [GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx) renders all sphere planet nodes and orbital wireframe rings using `THREE.InstancedMesh`:
 - **Planet Mesh**: Single `InstancedMesh` with `SphereGeometry(0.75, 16, 16)`. Per-instance positions and theme colors (`instanceColor`).
 - **Ring Mesh**: Single `InstancedMesh` with `TorusGeometry(1.25, 0.025, 8, 24)`.
-- **Starfield**: `THREE.Points` particle dust cloud with 5,000+ stars.
+- **Calm Blue Atmospheric Skysphere**: Custom inverted `ShaderMaterial` skysphere (`radius: 1000`, `depthWrite: false`) featuring a calm gradient from deep azure zenith (`#0c4a6e`) to cerulean sky blue (`#0284c7`), soft hazy pastel horizon (`#bae6fd`), and lower atmosphere blue (`#0369a1`), matching the 3D Sphere Map floating atmosphere.
 
 ### 2. First-Person 6-DOF Fly & Pan Camera Controls
 Replaces single-pivot `OrbitControls` with a pure First-Person flight controller:
@@ -56,19 +55,17 @@ Replaces single-pivot `OrbitControls` with a pure First-Person flight controller
 - **Right-Click / Middle-Click + Mouse Drag**: Pans camera position sideways and vertically in screen space.
 - **`WASD` / Arrow Keys / Scroll**: Propels camera position smoothly through 3D galactic space with velocity damping.
 
-### 3. GPU Instanced Raycasting
-Uses `raycaster.intersectObject(planetInstancedMesh)` to locate `intersects[0].instanceId` in $O(1)$ time, mapping instance indices directly to `spheres[instanceId]` for hover highlights and click selection.
+### 3. Hover Label & Double-Click Interaction
+- **Hover**: Uses `raycaster.intersectObject(planetInstancedMesh)` to locate `intersects[0].instanceId` in $O(1)$ time. Shows a clean `"/spherename"` monospace text label next to the cursor with no card backdrops, borders, or buttons.
+- **Double-Click**: Listens to `dblclick` events. Double-clicking any 3D planet node selects that sphere and executes `onGoToMap()`, smoothly loading into the 3D Sphere Map view.
 
 ---
 
 ## ⚡ Extension Guidelines for AI Agents
 
-1. **Preset Command Filter Invariant**:
-   - `/all` MUST remain the default command preset filter, returning all registered spheres without categorical friction.
-   - `/mine` filters planets to show only globes created by `currentUser`.
-2. **Sphere Creation Authentication Guard**:
+1. **Sphere Creation Authentication Guard**:
    - Only authenticated users (`currentUser !== null`) can open the *Create New Sphere* modal. Unauthenticated visitors clicking "+ Create Sphere" trigger `onOpenAuthModal('login')`.
-3. **Persistence Guarantee**:
+2. **Persistence Guarantee**:
    - When a user submits the *Create New Sphere* form, pass the `SphereItem` to `onCreateSphere()`, which calls `saveSphereToSupabase()` in [sphereService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/sphereService.ts) to permanently save it to PostgreSQL.
-4. **Canvas Performance**:
+3. **Canvas Performance**:
    - Do NOT replace `InstancedMesh` in [GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx) with individual `THREE.Mesh` objects, as doing so will break 60 FPS performance when scaling to thousands of spheres.

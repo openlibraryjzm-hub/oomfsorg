@@ -43,12 +43,12 @@ In Conquest mode, target percentages ($S_u\%$) are converted into exact integer 
 - `getOrLoadImage(url, onLoaded)` loads and caches `HTMLImageElement` instances asynchronously.
 - In `drawRegionTexture`: If `owner.customImage` is defined, the image is rendered **1 per tile** inside tile UV bounds `[x + 1, y + 1, w - 2, h - 2]`.
 
-### 5. 4K sRGB Unlit Rendering Pipeline
+### 5. 4K sRGB Unlit Rendering Pipeline & Calm Blue Sky Skybox
 - Canvas Texture resolution: $4096 \times 2048$.
 - `texture.colorSpace = THREE.SRGBColorSpace`
 - `renderer.toneMapping = THREE.NoToneMapping` (prevents filmic curve compression).
 - `MeshBasicMaterial({ map: texture })` (unlit mode to eliminate directional light shadows).
-- Atmosphere shell: `THREE.AdditiveBlending` with `depthWrite = false`.
+- **Calm Blue Atmospheric Skysphere**: Custom inverted `ShaderMaterial` skysphere (`radius: 500`, `depthWrite: false`) featuring a calm gradient from deep azure zenith (`#0c4a6e`) to cerulean sky blue (`#0284c7`), soft hazy pastel horizon (`#bae6fd`), and lower atmosphere blue (`#0369a1`). Eliminates floor grid lines and black void bottoms, creating a floating-in-the-sky experience.
 
 ---
 

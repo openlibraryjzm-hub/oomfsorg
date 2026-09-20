@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, CarouselSection, CarouselItem, AuthModalMode } from '../types/auth';
-import { updateUserProfile } from '../utils/authService';
+import { fetchUserProfileByUsername, updateUserProfile } from '../utils/authService';
 import { uploadTileImageToSupabase } from '../utils/sphereService';
 import {
   ArrowRight,
@@ -19,22 +19,35 @@ import {
   LogIn,
   LogOut,
   UserPlus,
+  Globe,
 } from 'lucide-react';
 
 interface MemberProfilePageProps {
   currentUser: UserProfile | null;
+  targetUsername?: string;
   onGoToMap: () => void;
+  onOpenSphereStudio?: () => void;
   onOpenAuthModal?: (mode: AuthModalMode) => void;
   onSignOut?: () => void;
 }
 
 export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   currentUser,
+  targetUsername,
   onGoToMap,
+  onOpenSphereStudio,
   onOpenAuthModal,
   onSignOut,
 }) => {
-  const [profile, setProfile] = useState<UserProfile | null>(currentUser);
+  const effectiveUsername = targetUsername || currentUser?.username || 'oprah';
+  const cleanHandle = effectiveUsername.replace(/^@/, '').toLowerCase().replace(/\s+/g, '-');
+
+  const isOwnProfile = Boolean(
+    currentUser &&
+    currentUser.username.replace(/^@/, '').toLowerCase().replace(/\s+/g, '-') === cleanHandle
+  );
+
+  const [profile, setProfile] = useState<UserProfile | null>(isOwnProfile ? currentUser : null);
 
   // Bio state
   const [isEditingBio, setIsEditingBio] = useState<boolean>(false);
@@ -45,7 +58,9 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   const [twitterInput, setTwitterInput] = useState<string>(currentUser?.twitterHandle || '');
 
   // Carousels state
-  const [carousels, setCarousels] = useState<CarouselSection[]>(currentUser?.carousels || []);
+  const [carousels, setCarousels] = useState<CarouselSection[]>(
+    (isOwnProfile ? currentUser?.carousels : profile?.carousels) || []
+  );
   const [isAddingCarousel, setIsAddingCarousel] = useState<boolean>(false);
   const [newCarouselTitle, setNewCarouselTitle] = useState<string>('');
   const [uploadingCarouselId, setUploadingCarouselId] = useState<string | null>(null);
@@ -57,19 +72,41 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   // Lightbox modal state
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Sync state when currentUser prop changes
+  // Sync profile state when currentUser or targetUsername prop changes
   useEffect(() => {
-    if (currentUser) {
-      setProfile(currentUser);
-      setBioInput(currentUser.bio || '');
-      setTwitterInput(currentUser.twitterHandle || '');
-      setCarousels(currentUser.carousels || []);
+    let isMounted = true;
+    async function loadProfile() {
+      const handleToFetch = targetUsername || currentUser?.username || 'oprah';
+      if (!handleToFetch) return;
+
+      const cleanHandleToFetch = handleToFetch.replace(/^@/, '').toLowerCase().replace(/\s+/g, '-');
+
+      if (isOwnProfile && currentUser) {
+        setProfile(currentUser);
+        setBioInput(currentUser.bio || '');
+        setTwitterInput(currentUser.twitterHandle || '');
+        setCarousels(currentUser.carousels || []);
+      }
+
+      const fetched = await fetchUserProfileByUsername(cleanHandleToFetch);
+      if (isMounted && fetched) {
+        setProfile(fetched);
+        setBioInput(fetched.bio || '');
+        setTwitterInput(fetched.twitterHandle || '');
+        setCarousels(fetched.carousels || []);
+      }
     }
-  }, [currentUser]);
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, targetUsername, isOwnProfile]);
 
   // Save bio handler
   const handleSaveBio = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !isOwnProfile) return;
     try {
       const updated = await updateUserProfile(currentUser.id, { bio: bioInput });
       setProfile(updated);
@@ -81,10 +118,10 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Save twitter handle handler
   const handleSaveTwitter = async () => {
-    if (!currentUser) return;
-    const cleanHandle = twitterInput.replace(/^@/, '').trim();
+    if (!currentUser || !isOwnProfile) return;
+    const cleanTwitter = twitterInput.replace(/^@/, '').trim();
     try {
-      const updated = await updateUserProfile(currentUser.id, { twitterHandle: cleanHandle });
+      const updated = await updateUserProfile(currentUser.id, { twitterHandle: cleanTwitter });
       setProfile(updated);
       setIsEditingTwitter(false);
     } catch (err) {
@@ -94,7 +131,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Add Carousel section handler
   const handleAddCarousel = async () => {
-    if (!currentUser || !newCarouselTitle.trim()) return;
+    if (!currentUser || !isOwnProfile || !newCarouselTitle.trim()) return;
     const newSection: CarouselSection = {
       id: `carousel-${Date.now()}`,
       title: newCarouselTitle.trim(),
@@ -115,7 +152,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Rename carousel handler
   const handleRenameCarousel = async (carouselId: string) => {
-    if (!currentUser || !editingTitleInput.trim()) return;
+    if (!currentUser || !isOwnProfile || !editingTitleInput.trim()) return;
     const nextCarousels = carousels.map(c =>
       c.id === carouselId ? { ...c, title: editingTitleInput.trim() } : c
     );
@@ -133,7 +170,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Delete carousel section handler
   const handleDeleteCarousel = async (carouselId: string) => {
-    if (!currentUser) return;
+    if (!currentUser || !isOwnProfile) return;
     const nextCarousels = carousels.filter(c => c.id !== carouselId);
     setCarousels(nextCarousels);
 
@@ -147,7 +184,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Upload image to carousel handler
   const handleUploadCarouselImage = async (carouselId: string, file: File) => {
-    if (!currentUser) return;
+    if (!currentUser || !isOwnProfile) return;
     setUploadingCarouselId(carouselId);
 
     try {
@@ -178,7 +215,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Delete image from carousel handler
   const handleDeleteImage = async (carouselId: string, imageId: string) => {
-    if (!currentUser) return;
+    if (!currentUser || !isOwnProfile) return;
     const nextCarousels = carousels.map(c =>
       c.id === carouselId ? { ...c, items: c.items.filter(i => i.id !== imageId) } : c
     );
@@ -192,7 +229,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
     }
   };
 
-  if (!currentUser) {
+  if (!currentUser && !targetUsername) {
     return (
       <div className="relative w-full h-full flex flex-col items-center justify-center p-6 z-10">
         <div className="glass-panel p-8 rounded-3xl max-w-md w-full text-center flex flex-col gap-4 border border-slate-800 shadow-2xl">
@@ -235,35 +272,35 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-start p-4 sm:p-8 z-10 overflow-y-auto">
-      <div className="max-w-6xl w-full min-h-[calc(100vh-6rem)] glass-panel p-6 sm:p-10 rounded-3xl shadow-2xl border border-slate-800/90 bg-slate-950/90 backdrop-blur-2xl flex flex-col gap-10 my-4 sm:my-6 animate-in fade-in zoom-in-95 duration-300">
+    <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 pt-20 sm:pt-24 z-10 overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1]">
+      <div className="max-w-6xl w-full flex flex-col gap-8 my-2 sm:my-4 animate-in fade-in duration-300">
         
         {/* Header Hero Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-8 border-b border-slate-800/80">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-white/10">
           <div className="flex items-center gap-5">
             <div className="relative flex-shrink-0">
               {profile?.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
-                  alt={currentUser.username}
+                  alt={cleanHandle}
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover ring-2 ring-cyan-400/80 shadow-xl shadow-cyan-500/20"
                 />
               ) : (
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-3xl uppercase shadow-xl ring-2 ring-white/20">
-                  {currentUser.username.charAt(0)}
+                  {cleanHandle.charAt(0)}
                 </div>
               )}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">@{currentUser.username}</h1>
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" /> Account Profile
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">@{cleanHandle}</h1>
+                <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5" /> {isOwnProfile ? 'Account Profile' : 'Sphere Host Member'}
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-slate-400 font-medium mt-0.5">
+              <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-sky-100/80 font-medium mt-0.5">
                 <span>Registered Member</span>
                 
                 {/* Reserved Twitter / X Badge */}
@@ -274,7 +311,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                       href={`https://x.com/${profile.twitterHandle}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-slate-200 hover:text-cyan-400 font-mono font-semibold flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-slate-700/60 transition-colors"
+                      className="text-slate-100 hover:text-cyan-300 font-mono font-semibold flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-xl border border-white/15 transition-colors"
                     >
                       <span className="font-bold text-xs text-cyan-400">𝕏</span>
                       <span>@{profile.twitterHandle}</span>
@@ -286,7 +323,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                     <span>•</span>
                     <button
                       onClick={() => setIsEditingTwitter(true)}
-                      className="text-cyan-400 hover:text-cyan-300 text-xs font-medium flex items-center gap-1 hover:underline"
+                      className="text-cyan-300 hover:text-cyan-200 text-xs font-medium flex items-center gap-1 hover:underline"
                     >
                       <span>+ Link Twitter Handle</span>
                     </button>
@@ -298,13 +335,13 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
               {isEditingTwitter && (
                 <div className="flex items-center gap-2 mt-2">
                   <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-xs text-slate-500 font-mono">@</span>
+                    <span className="absolute left-2.5 text-xs text-slate-400 font-mono">@</span>
                     <input
                       type="text"
                       value={twitterInput}
                       onChange={e => setTwitterInput(e.target.value)}
                       placeholder="twitter_username"
-                      className="pl-7 pr-3 py-1.5 bg-slate-950 border border-cyan-500/50 rounded-xl text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                      className="pl-7 pr-3 py-1.5 bg-black/50 border border-cyan-400/50 rounded-xl text-xs text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-300"
                     />
                   </div>
                   <button
@@ -327,10 +364,20 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-end flex-wrap">
-            {onSignOut && (
+            {isOwnProfile && onOpenSphereStudio && (
+              <button
+                onClick={onOpenSphereStudio}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30"
+                title="Manage sphere configurations, grid resolutions, and area allocations"
+              >
+                <Globe className="w-4 h-4 text-white" />
+                <span>Manage My Spheres</span>
+              </button>
+            )}
+            {isOwnProfile && onSignOut && (
               <button
                 onClick={onSignOut}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-rose-950/80 border border-slate-800 hover:border-rose-900/60 text-slate-300 hover:text-rose-300 font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+                className="px-4 py-2.5 rounded-xl bg-black/40 hover:bg-rose-950/80 border border-white/15 hover:border-rose-900/60 text-slate-200 hover:text-rose-300 font-bold text-xs flex items-center gap-2 transition-all shadow-md"
                 title="Sign out of account"
               >
                 <LogOut className="w-4 h-4 text-rose-400" />
@@ -339,24 +386,24 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
             )}
             <button
               onClick={onGoToMap}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30"
+              className="px-5 py-2.5 rounded-xl bg-black/40 hover:bg-white hover:text-black border border-white/20 text-slate-100 font-bold text-xs flex items-center gap-2 transition-all"
             >
-              <span>Return to 3D Sphere Map</span>
+              <span>Return to Map</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Member Bio / Description Section */}
-        <div className="bg-slate-950/80 p-6 sm:p-7 rounded-3xl border border-slate-800/90 flex flex-col gap-4 shadow-xl">
+        <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-400" /> Member Description & Bio
+            <span className="text-xs font-mono font-bold text-sky-200 uppercase tracking-widest flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-300" /> Member Description & Bio
             </span>
             {!isEditingBio && (
               <button
                 onClick={() => setIsEditingBio(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-700/60 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                className="px-3 py-1.5 rounded-xl bg-black/40 hover:bg-black/60 text-cyan-300 border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit Bio</span>
@@ -371,12 +418,12 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                 onChange={e => setBioInput(e.target.value)}
                 rows={4}
                 placeholder="Write a few lines about yourself, your projects, or your OOMF network..."
-                className="w-full bg-slate-900/90 border border-slate-700 rounded-2xl p-4 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
+                className="w-full bg-black/50 border border-white/20 rounded-2xl p-4 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
               />
               <div className="flex items-center gap-2 justify-end">
                 <button
                   onClick={() => setIsEditingBio(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                  className="px-4 py-2 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-slate-300 text-xs font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -389,11 +436,11 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-200 leading-relaxed font-normal whitespace-pre-wrap">
+            <p className="text-sm text-slate-100 leading-relaxed font-normal whitespace-pre-wrap">
               {profile?.bio && profile.bio.trim().length > 0 ? (
                 profile.bio
               ) : (
-                <span className="text-slate-500 italic">
+                <span className="text-slate-300/80 italic">
                   You haven't added a bio yet. Click 'Edit Bio' above to share your background with the community!
                 </span>
               )}
@@ -408,7 +455,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
               <h2 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
                 <span>🖼️ Showcase Carousels</span>
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 font-mono text-xs font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-black/30 border border-white/15 text-slate-200 font-mono text-xs font-bold">
                 {carousels.length} {carousels.length === 1 ? 'carousel' : 'carousels'}
               </span>
             </div>
@@ -424,7 +471,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
           {/* Add New Carousel Modal Input */}
           {isAddingCarousel && (
-            <div className="bg-slate-900/90 p-5 rounded-3xl border border-cyan-500/40 flex flex-col gap-3.5 shadow-xl animate-in fade-in duration-200">
+            <div className="bg-black/40 backdrop-blur-xl p-5 rounded-3xl border border-cyan-400/40 flex flex-col gap-3.5 shadow-xl animate-in fade-in duration-200">
               <span className="text-xs font-bold text-cyan-300 uppercase font-mono tracking-wider">Create Custom Title Carousel</span>
               <div className="flex items-center gap-3">
                 <input
@@ -432,7 +479,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                   value={newCarouselTitle}
                   onChange={e => setNewCarouselTitle(e.target.value)}
                   placeholder="e.g. Favorite Games, My Projects, Setup & Gear..."
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  className="flex-1 bg-black/50 border border-white/20 rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
                 />
                 <button
                   onClick={handleAddCarousel}
@@ -443,7 +490,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                 </button>
                 <button
                   onClick={() => setIsAddingCarousel(false)}
-                  className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-medium transition-colors"
+                  className="px-4 py-2.5 rounded-2xl bg-black/40 hover:bg-black/60 border border-white/10 text-slate-300 text-xs font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -453,13 +500,13 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
           {/* Carousels List */}
           {carousels.length === 0 ? (
-            <div className="bg-slate-950/60 p-12 rounded-3xl border border-slate-800/80 text-center flex flex-col items-center gap-4">
-              <div className="w-14 h-14 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 shadow-inner">
+            <div className="py-12 text-center flex flex-col items-center gap-4">
+              <div className="w-14 h-14 rounded-3xl bg-black/40 border border-white/15 flex items-center justify-center text-slate-200 shadow-inner">
                 <ImagePlus className="w-7 h-7" />
               </div>
               <div className="flex flex-col gap-1 max-w-sm">
-                <p className="text-sm font-bold text-slate-300">No Showcase Carousels Yet</p>
-                <p className="text-xs text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm font-bold text-slate-100">No Showcase Carousels Yet</p>
+                <p className="text-xs text-sky-100/80 leading-relaxed font-normal">
                   Click "+ Add Carousel" above to create custom image rows showcasing your favorite games, art, setup, or projects!
                 </p>
               </div>
@@ -496,18 +543,18 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
       {lightboxImage && (
         <div
           onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-200"
         >
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-6 right-6 p-3 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700 transition-colors shadow-2xl"
+            className="absolute top-6 right-6 p-3 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 transition-colors shadow-2xl"
           >
             <X className="w-6 h-6" />
           </button>
           <img
             src={lightboxImage}
             alt="Carousel Fullscreen Preview"
-            className="max-w-full max-h-[90vh] rounded-3xl object-contain shadow-2xl ring-1 ring-cyan-500/50"
+            className="max-w-full max-h-[90vh] rounded-3xl object-contain shadow-2xl ring-1 ring-cyan-400/50"
           />
         </div>
       )}
@@ -561,16 +608,16 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
   };
 
   return (
-    <div className="bg-slate-950/80 p-5 sm:p-6 rounded-3xl border border-slate-800/90 flex flex-col gap-4 shadow-xl">
+    <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
       {/* Carousel Section Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+      <div className="flex items-center justify-between pb-2 border-b border-white/10">
         {editingCarouselId === carousel.id ? (
           <div className="flex items-center gap-2">
             <input
               type="text"
               value={editingTitleInput}
               onChange={e => onChangeRenameTitle(e.target.value)}
-              className="bg-slate-900 border border-cyan-500/50 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
+              className="bg-black/50 border border-cyan-400/50 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
             />
             <button
               onClick={onSaveRename}
@@ -580,7 +627,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
             </button>
             <button
               onClick={onCancelRename}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors"
+              className="p-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-slate-300 border border-white/10 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -593,7 +640,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
             {isOwnProfile && (
               <button
                 onClick={onStartRename}
-                className="text-slate-500 hover:text-slate-300 transition-colors"
+                className="text-slate-400 hover:text-white transition-colors"
                 title="Rename Carousel"
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -606,14 +653,14 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
           {/* Scroll Nav Buttons */}
           <button
             onClick={scrollLeft}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors"
+            className="p-1.5 rounded-xl bg-black/40 hover:bg-black/70 text-slate-300 border border-white/15 transition-colors"
             title="Scroll Left"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={scrollRight}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors"
+            className="p-1.5 rounded-xl bg-black/40 hover:bg-black/70 text-slate-300 border border-white/15 transition-colors"
             title="Scroll Right"
           >
             <ChevronRight className="w-4 h-4" />
@@ -622,7 +669,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
           {isOwnProfile && (
             <button
               onClick={onDeleteCarousel}
-              className="p-1.5 rounded-xl bg-slate-900 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-slate-800 hover:border-rose-900/50 transition-colors ml-1"
+              className="p-1.5 rounded-xl bg-black/40 hover:bg-rose-950/80 text-slate-400 hover:text-rose-300 border border-white/15 hover:border-rose-900/50 transition-colors ml-1"
               title="Delete Carousel"
             >
               <Trash2 className="w-4 h-4" />
@@ -634,12 +681,12 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
       {/* Horizontal Scrolling Track */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 py-1.5 h-64 sm:h-72 snap-x snap-mandatory"
+        className="flex items-center gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 py-1.5 h-64 sm:h-72 snap-x snap-mandatory"
       >
         {carousel.items.map(item => (
           <div
             key={item.id}
-            className="relative flex-shrink-0 h-full w-auto rounded-2xl overflow-hidden group cursor-pointer border border-slate-800/90 hover:border-cyan-400/80 transition-all snap-start bg-slate-950 flex items-center justify-center shadow-xl"
+            className="relative flex-shrink-0 h-full w-auto rounded-2xl overflow-hidden group cursor-pointer border border-white/15 hover:border-cyan-300/80 transition-all snap-start bg-black/40 flex items-center justify-center shadow-xl"
             onClick={() => onSelectImage(item.imageUrl)}
           >
             <img
@@ -649,8 +696,8 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
             />
 
             {/* Dark gradient hover overlay with expand hint */}
-            <div className="absolute inset-0 z-20 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3 pointer-events-none">
-              <span className="text-[11px] font-medium text-slate-200 font-mono flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-slate-700/60 shadow-lg">
+            <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3 pointer-events-none">
+              <span className="text-[11px] font-medium text-slate-200 font-mono flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-xl border border-white/15 shadow-lg">
                 🔍 Click to expand
               </span>
             </div>
@@ -661,7 +708,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
                   e.stopPropagation();
                   onDeleteImage(item.id);
                 }}
-                className="absolute top-2.5 right-2.5 z-30 p-2 rounded-xl bg-slate-950/90 hover:bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-all shadow-xl border border-slate-700/60"
+                className="absolute top-2.5 right-2.5 z-30 p-2 rounded-xl bg-black/80 hover:bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-all shadow-xl border border-white/20"
                 title="Remove Image"
               >
                 <Trash2 className="w-4 h-4" />
@@ -672,7 +719,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
 
         {/* Upload Image Card (Owner Only) */}
         {isOwnProfile && (
-          <label className="flex-shrink-0 w-44 sm:w-48 h-full rounded-2xl border-2 border-dashed border-slate-800 hover:border-cyan-500/60 bg-slate-900/30 hover:bg-slate-900/70 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all snap-start shadow-md">
+          <label className="flex-shrink-0 w-44 sm:w-48 h-full rounded-2xl border-2 border-dashed border-white/20 hover:border-cyan-300/60 bg-black/20 hover:bg-black/40 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all snap-start shadow-md">
             {uploadingCarouselId === carousel.id ? (
               <>
                 <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
@@ -680,11 +727,11 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
               </>
             ) : (
               <>
-                <div className="w-10 h-10 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-300 shadow-md">
-                  <ImagePlus className="w-5 h-5 text-cyan-400" />
+                <div className="w-10 h-10 rounded-2xl bg-black/40 border border-white/15 flex items-center justify-center text-slate-200 shadow-md">
+                  <ImagePlus className="w-5 h-5 text-cyan-300" />
                 </div>
                 <span className="text-xs font-bold text-slate-200">+ Upload Image</span>
-                <span className="text-[10px] text-slate-500 font-mono">PNG, JPG, WebP</span>
+                <span className="text-[10px] text-slate-400 font-mono">PNG, JPG, WebP</span>
               </>
             )}
             <input
@@ -700,7 +747,7 @@ const CarouselRow: React.FC<CarouselRowProps> = ({
         )}
 
         {carousel.items.length === 0 && !isOwnProfile && (
-          <div className="w-full py-8 text-center text-xs text-slate-500 italic">
+          <div className="w-full py-8 text-center text-xs text-slate-400 italic">
             No images uploaded to this carousel yet.
           </div>
         )}

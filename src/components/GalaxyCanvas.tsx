@@ -2,12 +2,20 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { SphereItem, MapTheme } from '../types/map';
 
+export interface ScreenPositionUpdate {
+  x: number;
+  y: number;
+  visible: boolean;
+}
+
 interface GalaxyCanvasProps {
   spheres: SphereItem[];
   selectedSphereId: string | null;
   hoveredSphereId: string | null;
   onSelectSphere: (sphereId: string) => void;
-  onHoverSphere: (sphereId: string | null) => void;
+  onDoubleClickSphere?: (sphereId: string) => void;
+  onHoverSphere: (sphereId: string | null, mousePos?: { x: number; y: number }) => void;
+  onSelectedScreenPosUpdate?: (pos: ScreenPositionUpdate | null) => void;
 }
 
 // Theme color map for 3D sphere node materials
@@ -52,13 +60,28 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
   selectedSphereId,
   hoveredSphereId,
   onSelectSphere,
+  onDoubleClickSphere,
   onHoverSphere,
+  onSelectedScreenPosUpdate,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const planetInstancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const positionsRef = useRef<THREE.Vector3[]>([]);
   const keysPressedRef = useRef<Record<string, boolean>>({});
+
+  // Dynamic props refs for frame-by-frame projection without re-initializing scene
+  const spheresRef = useRef(spheres);
+  spheresRef.current = spheres;
+
+  const selectedSphereIdRef = useRef(selectedSphereId);
+  selectedSphereIdRef.current = selectedSphereId;
+
+  const onSelectedScreenPosUpdateRef = useRef(onSelectedScreenPosUpdate);
+  onSelectedScreenPosUpdateRef.current = onSelectedScreenPosUpdate;
+
+  const onDoubleClickSphereRef = useRef(onDoubleClickSphere);
+  onDoubleClickSphereRef.current = onDoubleClickSphere;
 
   // Pure First-Person Fly Camera State (Anvaka Style)
   const isDraggingLeftRef = useRef<boolean>(false);
@@ -74,9 +97,54 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
 
     const count = spheres.length;
 
-    // 1. Scene Setup (Single Solid Color Background: #f8fafc)
+    // 1. Scene Setup: Calm Blue Sky Atmospheric Skysphere
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#f8fafc');
+
+    const skysphereGeo = new THREE.SphereGeometry(1000, 64, 32);
+    const skysphereMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: {
+        topColor: { value: new THREE.Color('#0c4a6e') },      // Deep Calm Azure Zenith
+        midColor: { value: new THREE.Color('#0284c7') },      // Cerulean Sky Blue
+        horizonColor: { value: new THREE.Color('#bae6fd') },  // Soft Hazy Pastel Horizon Light
+        bottomColor: { value: new THREE.Color('#0369a1') },   // Calm Lower Atmosphere Blue
+      },
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vWorldPosition;
+        uniform vec3 topColor;
+        uniform vec3 midColor;
+        uniform vec3 horizonColor;
+        uniform vec3 bottomColor;
+
+        void main() {
+          float h = normalize(vWorldPosition).y;
+          vec3 finalColor;
+
+          if (h > 0.0) {
+            float mixFactor = smoothstep(0.0, 0.7, h);
+            finalColor = mix(horizonColor, topColor, mixFactor);
+            float skyFactor = sin(smoothstep(0.0, 0.9, h) * 3.14159);
+            finalColor = mix(finalColor, midColor, skyFactor * 0.35);
+          } else {
+            float mixFactor = smoothstep(0.0, -0.8, h);
+            finalColor = mix(horizonColor, bottomColor, mixFactor);
+          }
+
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `,
+    });
+    const skysphereMesh = new THREE.Mesh(skysphereGeo, skysphereMat);
+    scene.add(skysphereMesh);
 
     // 2. Camera Setup
     const camera = new THREE.PerspectiveCamera(
@@ -217,7 +285,7 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
         const idx = intersects[0].instanceId;
         const targetSphere = spheres[idx];
         if (targetSphere) {
-          onHoverSphere(targetSphere.id);
+          onHoverSphere(targetSphere.id, { x: e.clientX, y: e.clientY });
           container.style.cursor = 'pointer';
           return;
         }
@@ -248,6 +316,27 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
       }
     };
 
+    const handleDblClick = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObject(planetInstancedMesh);
+
+      if (intersects.length > 0 && intersects[0].instanceId !== undefined) {
+        const idx = intersects[0].instanceId;
+        const targetSphere = spheres[idx];
+        if (targetSphere && onDoubleClickSphereRef.current) {
+          onDoubleClickSphereRef.current(targetSphere.id);
+        }
+      }
+    };
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const zoomSens = 0.08;
@@ -264,6 +353,7 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
     window.addEventListener('mouseup', handleMouseUp);
     container.addEventListener('mousemove', handlePointerMove);
     container.addEventListener('click', handleClick);
+    container.addEventListener('dblclick', handleDblClick);
     container.addEventListener('contextmenu', handleContextMenu);
     container.addEventListener('wheel', handleWheel, { passive: false });
 
@@ -335,6 +425,38 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
       moveVelocityRef.current.multiplyScalar(0.88);
 
       renderer.render(scene, camera);
+
+      // Project 3D position of selected sphere to 2D screen coordinates
+      const currentSelectedId = selectedSphereIdRef.current;
+      const callback = onSelectedScreenPosUpdateRef.current;
+      if (currentSelectedId && callback && container) {
+        const selectedIdx = spheresRef.current.findIndex(s => s.id === currentSelectedId);
+        if (selectedIdx !== -1 && positionsRef.current[selectedIdx]) {
+          const worldPos = positionsRef.current[selectedIdx].clone();
+          const tempVec = worldPos.clone();
+          tempVec.project(camera);
+
+          const isVisible =
+            tempVec.z <= 1.0 &&
+            tempVec.x >= -1.2 &&
+            tempVec.x <= 1.2 &&
+            tempVec.y >= -1.2 &&
+            tempVec.y <= 1.2;
+
+          const screenX = ((tempVec.x + 1) * container.clientWidth) / 2;
+          const screenY = ((-tempVec.y + 1) * container.clientHeight) / 2;
+
+          callback({
+            x: screenX,
+            y: screenY,
+            visible: isVisible,
+          });
+        } else {
+          callback(null);
+        }
+      } else if (callback) {
+        callback(null);
+      }
     };
 
     animate();
@@ -348,6 +470,7 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
       window.removeEventListener('mouseup', handleMouseUp);
       container.removeEventListener('mousemove', handlePointerMove);
       container.removeEventListener('click', handleClick);
+      container.removeEventListener('dblclick', handleDblClick);
       container.removeEventListener('contextmenu', handleContextMenu);
       container.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);

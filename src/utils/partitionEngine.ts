@@ -397,7 +397,31 @@ export function drawRegionTexture(
   const userMap = new Map<number, UserAccount>();
   users.forEach(u => userMap.set(u.id, u));
 
-  // 1. Draw 3D Quad Tiles
+  // Determine grid dimensions from UV step size
+  const firstTile = tiles[0];
+  const [[u0_0, v0_0], [u1_0, _a], [_b, v1_0]] = firstTile.polygonUV;
+  const colsPerFace = Math.max(1, Math.round(1 / (4 * Math.max(0.001, u1_0 - u0_0))));
+  const rowsPerFace = Math.max(1, Math.round(1 / Math.max(0.001, v1_0 - v0_0)));
+  const totalCols = 4 * colsPerFace;
+
+  // Build grid map for fast neighbor owner lookup: `${row},${globalCol}` -> ownerUserId
+  const ownerGrid = new Map<string, number>();
+  tiles.forEach((tile, idx) => {
+    const sideFace = Math.floor(idx / (rowsPerFace * colsPerFace));
+    const rem = idx % (rowsPerFace * colsPerFace);
+    const row = Math.floor(rem / colsPerFace);
+    const colInFace = rem % colsPerFace;
+    const globalCol = sideFace * colsPerFace + colInFace;
+    ownerGrid.set(`${row},${globalCol}`, tile.ownerUserId);
+  });
+
+  const getOwner = (r: number, c: number): number | undefined => {
+    if (r < 0 || r >= rowsPerFace) return undefined;
+    const wrappedCol = (c % totalCols + totalCols) % totalCols;
+    return ownerGrid.get(`${r},${wrappedCol}`);
+  };
+
+  // 1. Draw 3D Quad Tiles with steady base fills and subtle grid lines
   tiles.forEach(tile => {
     const owner = userMap.get(tile.ownerUserId);
     if (!owner) return;
@@ -409,13 +433,13 @@ export function drawRegionTexture(
     const w = (u1 - u0) * width;
     const h = (v1 - v0) * height;
 
-    const isHovered = hoveredUserId === owner.id;
     const isSelected = selectedUserId === owner.id;
+    const isHovered = hoveredUserId === owner.id;
 
     if (isSelected) {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = hexToRgba(owner.color, 0.85);
     } else if (isHovered) {
-      ctx.fillStyle = owner.color;
+      ctx.fillStyle = hexToRgba(owner.color, 0.75);
     } else {
       ctx.fillStyle = hexToRgba(owner.color, theme === 'wireframe' ? 0.3 : 0.65);
     }
@@ -434,15 +458,80 @@ export function drawRegionTexture(
       }
     }
 
-    // Inner Grid Line
-    ctx.strokeStyle = isSelected
-      ? '#38bdf8'
-      : isHovered
-      ? '#ffffff'
-      : 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = isSelected ? 2 : 1;
+    // Standard subtle inner tile grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
   });
+
+  // 2. Draw Outer Perimeter Outlines for Hovered and Selected Territory Clusters
+  const drawClusterOutline = (
+    targetUserId: number,
+    strokeColor: string,
+    glowColor: string,
+    lineWidth: number
+  ) => {
+    ctx.save();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 12;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+
+    tiles.forEach((tile, idx) => {
+      if (tile.ownerUserId !== targetUserId) return;
+
+      const sideFace = Math.floor(idx / (rowsPerFace * colsPerFace));
+      const rem = idx % (rowsPerFace * colsPerFace);
+      const row = Math.floor(rem / colsPerFace);
+      const colInFace = rem % colsPerFace;
+      const globalCol = sideFace * colsPerFace + colInFace;
+
+      const [[u0, v0], [u1, _1], [_2, v1]] = tile.polygonUV;
+      const x = u0 * width;
+      const y = v0 * height;
+      const w = (u1 - u0) * width;
+      const h = (v1 - v0) * height;
+
+      // Top Edge (if neighbor belongs to a different user or is outside boundary)
+      if (getOwner(row - 1, globalCol) !== targetUserId) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y);
+      }
+      // Bottom Edge
+      if (getOwner(row + 1, globalCol) !== targetUserId) {
+        ctx.moveTo(x, y + h);
+        ctx.lineTo(x + w, y + h);
+      }
+      // Left Edge
+      if (getOwner(row, globalCol - 1) !== targetUserId) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + h);
+      }
+      // Right Edge
+      if (getOwner(row, globalCol + 1) !== targetUserId) {
+        ctx.moveTo(x + w, y);
+        ctx.lineTo(x + w, y + h);
+      }
+    });
+
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  // Draw Hovered Territory Cluster Outer Boundary
+  if (hoveredUserId !== null && hoveredUserId !== selectedUserId) {
+    const owner = userMap.get(hoveredUserId);
+    drawClusterOutline(hoveredUserId, '#ffffff', owner?.color || '#ffffff', 5);
+  }
+
+  // Draw Selected Territory Cluster Outer Boundary
+  if (selectedUserId !== null) {
+    drawClusterOutline(selectedUserId, '#38bdf8', '#00f0ff', 6);
+  }
 
   // Vertical Face Division Lines
   if (showGrid) {
