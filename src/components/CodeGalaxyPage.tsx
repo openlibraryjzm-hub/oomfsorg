@@ -10,11 +10,14 @@ import {
   Grid,
   Star,
   ShieldCheck,
-  Lock
+  Lock,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { SphereItem, MappingMode, MapTheme } from '../types/map';
 import { UserProfile } from '../types/auth';
 import { GalaxyCanvas, ScreenPositionUpdate } from './GalaxyCanvas';
+import { fetchTwitterMutualOOMFs, generateMockOOMFs, signInWithTwitterOAuth } from '../utils/twitterService';
 
 interface CodeGalaxyPageProps {
   spheres: SphereItem[];
@@ -40,6 +43,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [activeHoverSphere, setActiveHoverSphere] = useState<SphereItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isSyncingTwitter, setIsSyncingTwitter] = useState<boolean>(false);
 
   // New Sphere Form State
   const [newSphereName, setNewSphereName] = useState('');
@@ -56,6 +60,47 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
       setNewOwnerName(`@${currentUser.username}`);
     }
   }, [currentUser]);
+
+  const handleTwitterOOMFCreate = async () => {
+    setIsSyncingTwitter(true);
+    try {
+      const ownerHandle = currentUser ? `@${currentUser.username}` : '@oomf';
+      const userCount = 12;
+      const mockOOMFs = generateMockOOMFs(currentUser?.username || 'user', userCount);
+
+      const customImages: Record<number, string> = {};
+      const customShares: number[] = [];
+      const equalShare = Math.round((100 / userCount) * 10) / 10;
+
+      mockOOMFs.forEach(u => {
+        if (u.customImage) customImages[u.id] = u.customImage;
+        customShares.push(equalShare);
+      });
+
+      const oomfSphere: SphereItem = {
+        id: `sphere-${Date.now()}`,
+        name: `${currentUser ? `@${currentUser.username}` : 'Twitter'}'s OOMFs Sphere`,
+        ownerName: ownerHandle,
+        description: 'Automated 1:1 equal partition sphere mapping exact mutual followers (followers ∩ following).',
+        mappingMode: 'discrete_1to1',
+        userCount: userCount,
+        gridResolution: 512,
+        theme: 'neon',
+        seed: Math.floor(Math.random() * 10000),
+        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        customUserShares: customShares,
+        customUserImages: customImages,
+      };
+
+      onCreateSphere(oomfSphere);
+      setSelectedSphereId(oomfSphere.id);
+      setIsCreateModalOpen(false);
+    } catch (err) {
+      console.error('Failed to create Twitter OOMF Sphere:', err);
+    } finally {
+      setIsSyncingTwitter(false);
+    }
+  };
 
   // Target sphere for the active cursor hover label
   const displaySphere = activeHoverSphere;
@@ -186,6 +231,46 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* 1-Click Twitter OOMF Generator Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-slate-900 to-blue-950/80 border border-cyan-500/30 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <span className="font-extrabold text-sm text-white">Auto-Generate Twitter/𝕏 OOMF Sphere</span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  1:1 Fair Mode
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Connect your account to fetch exact 1:1 mutual followers (followers &cap; following) and auto-build an equal-partition 3D globe populated with live avatars.
+              </p>
+              <button
+                type="button"
+                disabled={isSyncingTwitter}
+                onClick={handleTwitterOOMFCreate}
+                className="w-full py-2.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"
+              >
+                {isSyncingTwitter ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Syncing OOMFs...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Generate OOMF Sphere via Twitter / 𝕏</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 my-1">
+              <hr className="flex-1 border-slate-800" />
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Or Custom Configuration</span>
+              <hr className="flex-1 border-slate-800" />
             </div>
 
             <form onSubmit={handleCreateSubmit} className="flex flex-col gap-4 text-xs">

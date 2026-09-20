@@ -247,6 +247,22 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
         {/* Tab 0: Sphere Selector & Management */}
         {activeTab === 'spheres' && (
           <div className="flex flex-col gap-6 p-6 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl">
+            
+            {/* Twitter OOMF Sync Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-zinc-900 to-blue-950/80 border border-cyan-500/30 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white">Twitter / 𝕏 OOMF Mutuals Generator</h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Sync direct 1:1 mutual followers (followers &cap; following) into a fair 1:1 equal-partition planet.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Filter Pills & Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 p-1 bg-zinc-900 rounded-2xl border border-zinc-800">
