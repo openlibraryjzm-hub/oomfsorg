@@ -71,6 +71,23 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
   // Lightbox modal state
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
+
+  const handleUploadBannerFile = async (file: File) => {
+    if (!currentUser || !isOwnProfile) return;
+    setIsUploadingBanner(true);
+    try {
+      const publicUrl = await uploadTileImageToSupabase(file);
+      if (publicUrl) {
+        const updated = await updateUserProfile(currentUser.id, { bannerUrl: publicUrl });
+        setProfile(updated);
+      }
+    } catch (err) {
+      console.error('Failed to upload banner image:', err);
+    } finally {
+      setIsUploadingBanner(false);
+    }
+  };
 
   // Sync profile state when currentUser or targetUsername prop changes
   useEffect(() => {
@@ -272,138 +289,140 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 pt-20 sm:pt-24 z-10 overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1]">
-      <div className="max-w-6xl w-full flex flex-col gap-8 my-2 sm:my-4 animate-in fade-in duration-300">
+    <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-start z-10 overflow-y-auto bg-slate-950 text-white">
+      <div className="max-w-4xl w-full flex flex-col gap-0 border-x border-slate-800/80 min-h-screen bg-slate-950 animate-in fade-in duration-300">
         
-        {/* Header Hero Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-white/10">
-          <div className="flex items-center gap-5">
-            <div className="relative flex-shrink-0">
+        {/* 1. HD Twitter Cover Banner (1500x500 Header) */}
+        <div className="relative w-full h-44 sm:h-56 bg-gradient-to-r from-slate-900 via-cyan-950 to-blue-950 overflow-hidden border-b border-slate-800 group">
+          {profile?.bannerUrl ? (
+            <img
+              src={profile.bannerUrl}
+              alt={`${cleanHandle} Cover Banner`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-cyan-950 via-slate-900 to-blue-950 opacity-90 flex items-center justify-center">
+              <span className="font-mono text-xs text-slate-600 uppercase tracking-widest">𝕏 Header Banner</span>
+            </div>
+          )}
+
+          {isOwnProfile && (
+            <label className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white border border-white/20 text-xs font-bold flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all shadow-xl backdrop-blur-md">
+              {isUploadingBanner ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                  <span>Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>Change Cover Banner</span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadBannerFile(file);
+                }}
+              />
+            </label>
+          )}
+        </div>
+
+
+        {/* 2. Overlapping HD Avatar & Profile Action Bar */}
+        <div className="relative px-5 sm:px-8 pb-6 border-b border-slate-800/80">
+          <div className="flex items-end justify-between -mt-14 sm:-mt-16 mb-4">
+            
+            {/* Overlapping Avatar */}
+            <div className="relative">
               {profile?.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
                   alt={cleanHandle}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover ring-2 ring-cyan-400/80 shadow-xl shadow-cyan-500/20"
+                  className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover ring-4 ring-slate-950 shadow-2xl bg-slate-900"
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-3xl uppercase shadow-xl ring-2 ring-white/20">
+                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-4xl uppercase ring-4 ring-slate-950 shadow-2xl">
                   {cleanHandle.charAt(0)}
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">@{cleanHandle}</h1>
-                <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" /> {isOwnProfile ? 'Account Profile' : 'Sphere Host Member'}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-sky-100/80 font-medium mt-0.5">
-                <span>Registered Member</span>
-                
-                {/* Reserved Twitter / X Badge */}
-                {profile?.twitterHandle ? (
-                  <>
-                    <span>•</span>
-                    <a
-                      href={`https://x.com/${profile.twitterHandle}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-slate-100 hover:text-cyan-300 font-mono font-semibold flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-xl border border-white/15 transition-colors"
-                    >
-                      <span className="font-bold text-xs text-cyan-400">𝕏</span>
-                      <span>@{profile.twitterHandle}</span>
-                      <ExternalLink className="w-3 h-3 opacity-60" />
-                    </a>
-                  </>
-                ) : !isEditingTwitter ? (
-                  <>
-                    <span>•</span>
-                    <button
-                      onClick={() => setIsEditingTwitter(true)}
-                      className="text-cyan-300 hover:text-cyan-200 text-xs font-medium flex items-center gap-1 hover:underline"
-                    >
-                      <span>+ Link Twitter Handle</span>
-                    </button>
-                  </>
-                ) : null}
-              </div>
-
-              {/* Edit Twitter Handle Inline Input */}
-              {isEditingTwitter && (
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-xs text-slate-400 font-mono">@</span>
-                    <input
-                      type="text"
-                      value={twitterInput}
-                      onChange={e => setTwitterInput(e.target.value)}
-                      placeholder="twitter_username"
-                      className="pl-7 pr-3 py-1.5 bg-black/50 border border-cyan-400/50 rounded-xl text-xs text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-300"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSaveTwitter}
-                    className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
-                    title="Save Twitter Handle"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setIsEditingTwitter(false)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors"
-                    title="Cancel"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* Action Buttons Aligned Right */}
+            <div className="flex items-center gap-2 flex-wrap justify-end pt-3">
+              {isOwnProfile && onOpenSphereStudio && (
+                <button
+                  onClick={onOpenSphereStudio}
+                  className="px-4 py-2 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Manage My Spheres</span>
+                </button>
               )}
+              {isOwnProfile && onSignOut && (
+                <button
+                  onClick={onSignOut}
+                  className="px-3.5 py-2 rounded-full bg-slate-900 hover:bg-rose-950/80 text-slate-300 hover:text-rose-300 border border-slate-800 font-bold text-xs flex items-center gap-1.5 transition-all"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+              <button
+                onClick={onGoToMap}
+                className="px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 font-bold text-xs flex items-center gap-1.5 transition-all"
+              >
+                <span>Return to Map</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-end flex-wrap">
-            {isOwnProfile && onOpenSphereStudio && (
-              <button
-                onClick={onOpenSphereStudio}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30"
-                title="Manage sphere configurations, grid resolutions, and area allocations"
-              >
-                <Globe className="w-4 h-4 text-white" />
-                <span>Manage My Spheres</span>
-              </button>
-            )}
-            {isOwnProfile && onSignOut && (
-              <button
-                onClick={onSignOut}
-                className="px-4 py-2.5 rounded-xl bg-black/40 hover:bg-rose-950/80 border border-white/15 hover:border-rose-900/60 text-slate-200 hover:text-rose-300 font-bold text-xs flex items-center gap-2 transition-all shadow-md"
-                title="Sign out of account"
-              >
-                <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Sign Out</span>
-              </button>
-            )}
-            <button
-              onClick={onGoToMap}
-              className="px-5 py-2.5 rounded-xl bg-black/40 hover:bg-white hover:text-black border border-white/20 text-slate-100 font-bold text-xs flex items-center gap-2 transition-all"
-            >
-              <span>Return to Map</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          {/* User Display Name & @handle Badge */}
+          <div className="flex flex-col gap-1 mt-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {profile?.displayName || `@${cleanHandle}`}
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] font-bold">
+                ✓ Verified Account
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 font-mono text-xs text-slate-400">
+              <span>@{cleanHandle}</span>
+              {profile?.twitterHandle && (
+                <>
+                  <span>•</span>
+                  <a
+                    href={`https://x.com/${profile.twitterHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:underline flex items-center gap-1 font-bold"
+                  >
+                    <span>𝕏 @{profile.twitterHandle}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Member Bio / Description Section */}
-        <div className="flex flex-col gap-4 pb-6 border-b border-white/10">
+        {/* 3. Native Bio / Description Section */}
+        <div className="p-5 sm:p-8 flex flex-col gap-4 border-b border-slate-800/80">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-sky-200 uppercase tracking-widest flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-300" /> Member Description & Bio
+            <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-400" /> About & Bio
             </span>
-            {!isEditingBio && (
+            {isOwnProfile && !isEditingBio && (
               <button
                 onClick={() => setIsEditingBio(true)}
-                className="px-3 py-1.5 rounded-xl bg-black/40 hover:bg-black/60 text-cyan-300 border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                className="px-3 py-1 rounded-full bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-all"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit Bio</span>
@@ -416,40 +435,41 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
               <textarea
                 value={bioInput}
                 onChange={e => setBioInput(e.target.value)}
-                rows={4}
+                rows={3}
                 placeholder="Write a few lines about yourself, your projects, or your OOMF network..."
-                className="w-full bg-black/50 border border-white/20 rounded-2xl p-4 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
+                className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs sm:text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-all"
               />
               <div className="flex items-center gap-2 justify-end">
                 <button
                   onClick={() => setIsEditingBio(false)}
-                  className="px-4 py-2 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-slate-300 text-xs font-medium transition-colors"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveBio}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-emerald-600/20"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-md"
                 >
                   <Check className="w-4 h-4" /> Save Bio
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-100 leading-relaxed font-normal whitespace-pre-wrap">
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal whitespace-pre-wrap">
               {profile?.bio && profile.bio.trim().length > 0 ? (
                 profile.bio
               ) : (
-                <span className="text-slate-300/80 italic">
-                  You haven't added a bio yet. Click 'Edit Bio' above to share your background with the community!
+                <span className="text-slate-500 italic">
+                  No bio written yet.
                 </span>
               )}
             </p>
           )}
         </div>
 
-        {/* Media Showcase & Custom Carousels Section */}
-        <div className="flex flex-col gap-6">
+        {/* 4. Showcase Carousels Section */}
+        <div className="p-5 sm:p-8 flex flex-col gap-6">
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-black text-white tracking-tight flex items-center gap-2">

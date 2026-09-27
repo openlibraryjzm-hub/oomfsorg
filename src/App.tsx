@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Box, Target, Activity, MapPin, User } from 'lucide-react';
 import { MapSettings, UserAccount, SphereItem } from './types/map';
 import { AuthModalMode, UserProfile } from './types/auth';
-import { onAuthStateChange, signOutUser } from './utils/authService';
+import { onAuthStateChange, signOutUser, syncTwitterOAuthProfile } from './utils/authService';
 import { generateClusteredPartitions } from './utils/partitionEngine';
 import {
   fetchSpheresFromSupabase,
@@ -19,7 +19,6 @@ import { SphereOwnerPage } from './components/SphereOwnerPage';
 import { MemberProfilePage } from './components/MemberProfilePage';
 import { AuthModal } from './components/AuthModal';
 import { supabase } from './utils/supabase';
-import { handleTwitterOauthCallback } from './utils/twitterService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('map');
@@ -63,7 +62,7 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // 1.5 Handle return from Twitter OAuth redirect
+  // 1.5 Handle return from Twitter OAuth redirect & auto-create account profile
   useEffect(() => {
     async function checkTwitterOAuthReturn() {
       const pendingSync = localStorage.getItem('oomfs_pending_twitter_sync');
@@ -72,9 +71,6 @@ export const App: React.FC = () => {
       const oauthState = urlParams.get('state');
       const hasHashToken = typeof window !== 'undefined' && (window.location.hash.includes('access_token') || window.location.hash.includes('provider_token'));
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const hasProviderToken = !!session?.provider_token;
-
       if ((pendingSync === 'true' && (oauthCode || hasHashToken || oauthState === 'oomfs_sync')) || oauthCode || hasHashToken) {
         localStorage.removeItem('oomfs_pending_twitter_sync');
         if ((oauthCode || hasHashToken) && typeof window !== 'undefined') {
@@ -82,29 +78,50 @@ export const App: React.FC = () => {
         }
 
         const { data: { session } } = await supabase.auth.getSession();
-        const oomfSphere = await handleTwitterOauthCallback(session, oauthCode);
-        if (oomfSphere) {
-          setSpheres(prev => [oomfSphere, ...prev]);
-          setActiveSphereId(oomfSphere.id);
-          setCustomUserShares(oomfSphere.customUserShares);
-          setCustomUserImages(oomfSphere.customUserImages || {});
-          setSettings(prev => ({
-            ...prev,
-            mappingMode: oomfSphere.mappingMode,
-            userCount: oomfSphere.userCount,
-            gridResolution: oomfSphere.gridResolution,
-            theme: oomfSphere.theme,
-            seed: oomfSphere.seed,
-            selectedUserId: null,
-            hoveredUserId: null,
-          }));
-          setActiveTab('map');
-          saveSphereToSupabase(oomfSphere);
+        const twitterUser = session?.user;
+        const meta = twitterUser?.user_metadata || (twitterUser?.identities?.[0]?.identity_data as any) || {};
+
+        const twitterUsername = meta.preferred_username || meta.user_name || meta.username || 'twitter_user';
+        const twitterDisplayName = meta.name || meta.full_name || meta.display_name || twitterUsername;
+        const twitterAvatar = meta.avatar_url || meta.picture || meta.profile_image_url;
+        const twitterBanner = meta.profile_banner_url || meta.banner_url || meta.header_image_url || meta.cover_photo_url;
+        const twitterBio = meta.description || meta.bio || '';
+
+        if (twitterUsername) {
+          const { userProfile, homeSphere } = await syncTwitterOAuthProfile({
+            username: twitterUsername,
+            displayName: twitterDisplayName,
+            avatarUrl: twitterAvatar,
+            bannerUrl: twitterBanner,
+            bio: twitterBio,
+            twitterHandle: twitterUsername,
+          });
+
+          setCurrentUser(userProfile);
+
+          if (homeSphere) {
+            setSpheres(prev => [homeSphere, ...prev.filter(s => s.id !== homeSphere.id)]);
+            setActiveSphereId(homeSphere.id);
+            setCustomUserShares(homeSphere.customUserShares);
+            setCustomUserImages(homeSphere.customUserImages || {});
+            setSettings(prev => ({
+              ...prev,
+              mappingMode: homeSphere.mappingMode,
+              userCount: homeSphere.userCount,
+              gridResolution: homeSphere.gridResolution,
+              theme: homeSphere.theme,
+              seed: homeSphere.seed,
+              selectedUserId: null,
+              hoveredUserId: null,
+            }));
+          }
         }
       }
     }
     checkTwitterOAuthReturn();
   }, []);
+
+
 
   // 2. Fetch live spheres from Supabase on App mount
   useEffect(() => {

@@ -14,11 +14,13 @@ export interface CarouselSection {
 export interface UserProfile {
   id: string;
   username: string;
+  displayName?: string;
   email?: string;
   createdAt: string;
   bio?: string;
   carousels?: CarouselSection[];
   avatarUrl?: string;
+  bannerUrl?: string;
   twitterHandle?: string;
 }
 

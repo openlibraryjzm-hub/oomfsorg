@@ -1,7 +1,71 @@
 import { supabase } from './supabase';
 import { UserProfile } from '../types/auth';
+import { SphereItem } from '../types/map';
+import { saveSphereToSupabase } from './sphereService';
 
 const SESSION_KEY = 'oomfs_user_session';
+
+/**
+ * Ensure user has a personal 3D sphere planet named after their handle.
+ */
+export async function ensureUserHomeSphere(username: string): Promise<SphereItem> {
+  const cleanHandle = `@${username.trim().toLowerCase().replace(/^@/, '')}`;
+  try {
+    const { data: existingSpheres } = await supabase
+      .from('spheres')
+      .select('*')
+      .eq('owner_name', cleanHandle)
+      .limit(1);
+
+    if (existingSpheres && existingSpheres.length > 0) {
+      const row = existingSpheres[0];
+      return {
+        id: row.id.toString(),
+        name: row.name,
+        ownerName: row.owner_name,
+        description: row.description || '',
+        mappingMode: row.mapping_mode,
+        userCount: row.user_count,
+        gridResolution: row.grid_resolution,
+        theme: row.theme,
+        seed: row.seed,
+        createdAt: new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        customUserShares: row.custom_user_shares || undefined,
+        customUserImages: row.custom_user_images || {},
+      };
+    }
+
+    const newHomeSphere: SphereItem = {
+      id: `sphere-${Date.now()}`,
+      name: cleanHandle,
+      ownerName: cleanHandle,
+      description: `Official 3D community sphere for ${cleanHandle}`,
+      mappingMode: 'discrete_1to1',
+      userCount: 6,
+      gridResolution: 512,
+      theme: 'neon',
+      seed: Math.floor(Math.random() * 10000),
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+
+    const saved = await saveSphereToSupabase(newHomeSphere);
+    return saved || newHomeSphere;
+  } catch (err) {
+    console.warn('Error creating user home sphere:', err);
+    return {
+      id: `sphere-${Date.now()}`,
+      name: cleanHandle,
+      ownerName: cleanHandle,
+      description: `Official 3D community sphere for ${cleanHandle}`,
+      mappingMode: 'discrete_1to1',
+      userCount: 6,
+      gridResolution: 512,
+      theme: 'neon',
+      seed: Math.floor(Math.random() * 10000),
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+  }
+}
 
 /**
  * Hash password securely using native Web Crypto SHA-256 algorithm.
@@ -44,7 +108,7 @@ export async function signUpUser({
   // 2. Hash password
   const passwordHash = await hashPassword(password);
 
-  // 3. Insert profile into database (with fallback if password_hash column is not present on DB)
+  // 3. Insert profile into database
   let newProfile: any = null;
   const res1 = await supabase
     .from('profiles')
@@ -58,7 +122,6 @@ export async function signUpUser({
     .maybeSingle();
 
   if (res1.error) {
-    // Retry insert without password_hash if column is missing in remote DB
     const res2 = await supabase
       .from('profiles')
       .insert([{ username: cleanUsername }])
@@ -79,7 +142,10 @@ export async function signUpUser({
     createdAt: newProfile.created_at || new Date().toISOString(),
   };
 
-  // 4. Save session to localStorage
+  // 4. Auto create user home sphere named after handle
+  await ensureUserHomeSphere(cleanUsername);
+
+  // 5. Save session to localStorage
   localStorage.setItem(SESSION_KEY, JSON.stringify(userProfile));
 
   // Dispatch custom event for real-time app update
@@ -101,7 +167,7 @@ export async function signInUser({
   const cleanUsername = identifier.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
 
-  // 1. Query matching user with wildcard select to avoid PostgREST column 400 errors
+  // 1. Query matching user
   const { data: user, error } = await supabase
     .from('profiles')
     .select('*')
@@ -125,14 +191,19 @@ export async function signInUser({
   const userProfile: UserProfile = {
     id: user.id,
     username: user.username,
+    displayName: user.display_name || user.username,
     createdAt: user.created_at || new Date().toISOString(),
     bio: user.bio || '',
     carousels: user.carousels || [],
     avatarUrl: user.avatar_url || '',
+    bannerUrl: user.banner_url || '',
     twitterHandle: user.twitter_handle || '',
   };
 
-  // 3. Save session to localStorage
+  // Ensure home sphere exists for user
+  await ensureUserHomeSphere(cleanUsername);
+
+  // Save session to localStorage
   localStorage.setItem(SESSION_KEY, JSON.stringify(userProfile));
 
   // Dispatch custom event for real-time app update
@@ -150,7 +221,6 @@ export async function fetchUserProfileByUsername(username: string): Promise<User
   const cleanUsername = username.trim().toLowerCase();
   const cacheKey = `${PROFILE_CACHE_PREFIX}${cleanUsername}`;
 
-  // Read local cache first to preserve locally saved fields
   let cachedProfile: UserProfile | null = null;
   try {
     const cachedRaw = localStorage.getItem(cacheKey);
@@ -170,13 +240,14 @@ export async function fetchUserProfileByUsername(username: string): Promise<User
       const fetched: UserProfile = {
         id: user.id,
         username: user.username,
+        displayName: user.display_name || cachedProfile?.displayName || user.username,
         createdAt: user.created_at || new Date().toISOString(),
         bio: user.bio || cachedProfile?.bio || '',
         carousels: (user.carousels && user.carousels.length > 0) ? user.carousels : (cachedProfile?.carousels || []),
         avatarUrl: user.avatar_url || cachedProfile?.avatarUrl || '',
+        bannerUrl: user.banner_url || cachedProfile?.bannerUrl || '',
         twitterHandle: user.twitter_handle || cachedProfile?.twitterHandle || '',
       };
-      // Save merged profile to local cache
       localStorage.setItem(cacheKey, JSON.stringify(fetched));
       return fetched;
     }
@@ -188,7 +259,6 @@ export async function fetchUserProfileByUsername(username: string): Promise<User
     return cachedProfile;
   }
 
-  // Fallback 2: Check active session if handle matches
   const current = await getCurrentUserProfile();
   if (current && current.username.toLowerCase() === cleanUsername) {
     return current;
@@ -198,7 +268,7 @@ export async function fetchUserProfileByUsername(username: string): Promise<User
 }
 
 /**
- * Update user profile details (bio, carousels, avatarUrl, twitterHandle).
+ * Update user profile details (bio, carousels, avatarUrl, bannerUrl, twitterHandle, displayName).
  */
 export async function updateUserProfile(
   userId: string,
@@ -214,7 +284,6 @@ export async function updateUserProfile(
   const cleanUsername = nextProfile.username ? nextProfile.username.trim().toLowerCase() : '';
   const cacheKey = `${PROFILE_CACHE_PREFIX}${cleanUsername}`;
 
-  // 1. Update localStorage active session & per-user cache
   if (current && current.id === userId) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(nextProfile));
   }
@@ -222,12 +291,13 @@ export async function updateUserProfile(
     localStorage.setItem(cacheKey, JSON.stringify(nextProfile));
   }
 
-  // 2. Attempt Supabase DB update
   try {
     const dbUpdates: Record<string, any> = {};
     if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
     if (updates.carousels !== undefined) dbUpdates.carousels = updates.carousels;
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+    if (updates.bannerUrl !== undefined) dbUpdates.banner_url = updates.bannerUrl;
+    if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
     if (updates.twitterHandle !== undefined) dbUpdates.twitter_handle = updates.twitterHandle;
 
     if (Object.keys(dbUpdates).length > 0) {
@@ -240,7 +310,6 @@ export async function updateUserProfile(
     console.warn('Failed to persist profile update to Supabase DB, saved to local cache:', err);
   }
 
-  // Dispatch custom event for real-time UI updates
   window.dispatchEvent(new Event('oomfs-auth-change'));
 
   return nextProfile;
@@ -276,7 +345,6 @@ export function onAuthStateChange(callback: (user: UserProfile | null) => void) 
     callback(profile);
   };
 
-  // Initial load
   handleStateChange();
 
   window.addEventListener('oomfs-auth-change', handleStateChange);
@@ -293,4 +361,124 @@ export function onAuthStateChange(callback: (user: UserProfile | null) => void) 
     },
   };
 }
+
+/**
+ * Sync user profile after Twitter/X OAuth authentication.
+ */
+export async function syncTwitterOAuthProfile(metadata: {
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  bio?: string;
+  twitterHandle?: string;
+}): Promise<{ userProfile: UserProfile; homeSphere: SphereItem | null }> {
+  const cleanUsername = (metadata.username || 'twitter_user').trim().toLowerCase().replace(/^@/, '');
+  const twitterHandle = metadata.twitterHandle || cleanUsername;
+  const displayName = metadata.displayName || cleanUsername;
+  const bio = metadata.bio || '';
+
+  // 1. High-Res Avatar Extraction (_400x400 instead of _normal 48x48)
+  let avatarUrl = metadata.avatarUrl || '';
+  if (avatarUrl.includes('_normal.')) {
+    avatarUrl = avatarUrl.replace('_normal.', '_400x400.');
+  } else if (avatarUrl.includes('_normal')) {
+    avatarUrl = avatarUrl.replace('_normal', '');
+  }
+
+  // 2. High-Res Banner Extraction (1500x500 header)
+  let bannerUrl = metadata.bannerUrl || '';
+  if (bannerUrl && !bannerUrl.endsWith('/1500x500') && !bannerUrl.includes('/600x200')) {
+    bannerUrl = `${bannerUrl.replace(/\/$/, '')}/1500x500`;
+  }
+
+  // 3. Check if user profile already exists in Supabase
+  const { data: existingUser, error: queryErr } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('username', cleanUsername)
+    .maybeSingle();
+
+  if (queryErr && queryErr.code !== 'PGRST116') {
+    console.warn('Profile query warning during OAuth sync:', queryErr);
+  }
+
+  let userProfile: UserProfile;
+  let homeSphere: SphereItem | null = null;
+
+  if (existingUser) {
+    userProfile = {
+      id: existingUser.id,
+      username: existingUser.username,
+      displayName: existingUser.display_name || displayName,
+      createdAt: existingUser.created_at || new Date().toISOString(),
+      bio: existingUser.bio || bio,
+      carousels: existingUser.carousels || [],
+      avatarUrl: existingUser.avatar_url || avatarUrl,
+      bannerUrl: existingUser.banner_url || bannerUrl,
+      twitterHandle: existingUser.twitter_handle || twitterHandle,
+    };
+    // Returning user: Do NOT create any new spheres automatically
+    homeSphere = null;
+  } else {
+    // Insert new profile
+    const { data: newProfile, error: insertErr } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          username: cleanUsername,
+          display_name: displayName,
+          avatar_url: avatarUrl,
+          banner_url: bannerUrl,
+          bio: bio,
+          twitter_handle: twitterHandle,
+        },
+      ])
+      .select('*')
+      .maybeSingle();
+
+    if (insertErr) {
+      console.warn('Supabase profile insert warning, using fallback profile:', insertErr);
+    }
+
+    if (newProfile) {
+      userProfile = {
+        id: newProfile.id,
+        username: newProfile.username,
+        displayName: newProfile.display_name || displayName,
+        createdAt: newProfile.created_at || new Date().toISOString(),
+        bio: newProfile.bio || bio,
+        carousels: [],
+        avatarUrl: newProfile.avatar_url || avatarUrl,
+        bannerUrl: newProfile.banner_url || bannerUrl,
+        twitterHandle: newProfile.twitter_handle || twitterHandle,
+      };
+    } else {
+      userProfile = {
+        id: `user-${Date.now()}`,
+        username: cleanUsername,
+        displayName: displayName,
+        createdAt: new Date().toISOString(),
+        bio,
+        carousels: [],
+        avatarUrl,
+        bannerUrl,
+        twitterHandle,
+      };
+    }
+
+    // First time user: Auto create personal home sphere named after handle
+    homeSphere = await ensureUserHomeSphere(cleanUsername);
+  }
+
+  // Save active session
+  localStorage.setItem(SESSION_KEY, JSON.stringify(userProfile));
+  window.dispatchEvent(new Event('oomfs-auth-change'));
+
+  return { userProfile, homeSphere };
+}
+
+
+
+
 

@@ -11,14 +11,10 @@ import {
   Star,
   ShieldCheck,
   Lock,
-  Sparkles,
-  Loader2,
 } from 'lucide-react';
 import { SphereItem, MappingMode, MapTheme } from '../types/map';
 import { UserProfile } from '../types/auth';
-import { GalaxyCanvas, ScreenPositionUpdate } from './GalaxyCanvas';
-import { supabase } from '../utils/supabase';
-import { fetchTwitterMutualOOMFs, generateMockOOMFs, signInWithTwitterOAuth, handleTwitterOauthCallback } from '../utils/twitterService';
+import { GalaxyCanvas } from './GalaxyCanvas';
 
 interface CodeGalaxyPageProps {
   spheres: SphereItem[];
@@ -44,7 +40,6 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [activeHoverSphere, setActiveHoverSphere] = useState<SphereItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const [isSyncingTwitter, setIsSyncingTwitter] = useState<boolean>(false);
 
   // New Sphere Form State
   const [newSphereName, setNewSphereName] = useState('');
@@ -61,18 +56,6 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
       setNewOwnerName(`@${currentUser.username}`);
     }
   }, [currentUser]);
-
-  const handleTwitterOOMFCreate = async () => {
-    setIsSyncingTwitter(true);
-    try {
-      localStorage.setItem('oomfs_pending_twitter_sync', 'true');
-      await signInWithTwitterOAuth();
-    } catch (err) {
-      console.error('Failed to execute Twitter OAuth redirect:', err);
-    } finally {
-      setIsSyncingTwitter(false);
-    }
-  };
 
   // Target sphere for the active cursor hover label
   const displaySphere = activeHoverSphere;
@@ -124,8 +107,6 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
 
   // Layout positioning helper: flip popover left if near right edge of screen
   const isNearRightEdge = popoverPos ? popoverPos.x > (typeof window !== 'undefined' ? window.innerWidth - 320 : 600) : false;
-  const popoverLeft = popoverPos ? (isNearRightEdge ? popoverPos.x - 300 : popoverPos.x + 12) : 0;
-  const popoverTop = popoverPos ? Math.max(80, Math.min(popoverPos.y - 20, typeof window !== 'undefined' ? window.innerHeight - 260 : 600)) : 0;
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
@@ -157,7 +138,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
               setIsCreateModalOpen(true);
             }
           }}
-          className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap"
+          className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap cursor-pointer"
         >
           {currentUser ? (
             <>
@@ -167,13 +148,13 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
           ) : (
             <>
               <Lock className="w-3.5 h-3.5" />
-              <span>Log In to Create</span>
+              <span>Log In with 𝕏 to Create</span>
             </>
           )}
         </button>
       </div>
 
-      {/* 3. Pure Minimalist Hover Label: "/spherename" (No card backdrop, enter on double-click) */}
+      {/* 3. Pure Minimalist Hover Label: "/spherename" */}
       {popoverPos && displaySphere && (
         <div
           style={{
@@ -205,46 +186,6 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
               </button>
             </div>
 
-            {/* 1-Click Twitter OOMF Generator Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-slate-900 to-blue-950/80 border border-cyan-500/30 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-cyan-400" />
-                  <span className="font-extrabold text-sm text-white">Auto-Generate Twitter/𝕏 OOMF Sphere</span>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                  1:1 Fair Mode
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Connect your account to fetch exact 1:1 mutual followers (followers &cap; following) and auto-build an equal-partition 3D globe populated with live avatars.
-              </p>
-              <button
-                type="button"
-                disabled={isSyncingTwitter}
-                onClick={handleTwitterOOMFCreate}
-                className="w-full py-2.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20"
-              >
-                {isSyncingTwitter ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Syncing OOMFs...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate OOMF Sphere via Twitter / 𝕏</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 my-1">
-              <hr className="flex-1 border-slate-800" />
-              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Or Custom Configuration</span>
-              <hr className="flex-1 border-slate-800" />
-            </div>
-
             <form onSubmit={handleCreateSubmit} className="flex flex-col gap-4 text-xs">
               
               <div className="flex flex-col gap-1.5">
@@ -260,16 +201,29 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-slate-300 font-semibold">Sphere Host / Owner *</label>
+                <label className="text-slate-300 font-semibold flex items-center justify-between">
+                  <span>Sphere Host / Owner *</span>
+                  {currentUser && (
+                    <span className="text-[10px] text-cyan-400 font-mono flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Signed-In Account
+                    </span>
+                  )}
+                </label>
                 <input
                   type="text"
                   required
+                  readOnly={!!currentUser}
                   placeholder="e.g. @satoshi_oomf"
                   value={newOwnerName}
                   onChange={e => setNewOwnerName(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  className={`border rounded-xl px-3 py-2 text-white font-mono focus:outline-none ${
+                    currentUser
+                      ? 'bg-slate-900/60 border-cyan-500/40 text-cyan-300 cursor-not-allowed'
+                      : 'bg-slate-900 border-slate-800 focus:border-cyan-500'
+                  }`}
                 />
               </div>
+
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-slate-300 font-semibold">Description</label>
