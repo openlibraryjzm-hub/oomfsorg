@@ -1,17 +1,18 @@
-# Page Context Specification: Code Galaxy View
+# Page Context Specification: 2D Knowledge Graph View (Code Galaxy)
 
 ## 📌 Page Overview
 
-The **Code Galaxy View** is the network-level 3D constellation engine of OOMFS. It visualizes all active 3D community globes floating as 3D planet nodes in an interactive 3D WebGL starfield universe (inspired by *Code Galaxies*).
+The **2D Knowledge Graph View** (Code Galaxy) is the macro network graph engine of OOMFS. It visualizes all active community spheres as nodes in a fixed 2D knowledge graph structure with interconnecting edges, expanding in a responsive landscape orientation across devices.
 
 - **Navigation Trigger**: Accessed via the top-left `"oomfs.org"` brand button in [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx).
 - **Core Capabilities**:
-  - Full 3D camera navigation (WASD flight, 360° pitch/yaw mouse look around, screen-space panning, and zoom).
-  - Minimalist floating action button (`"+ Create Sphere"`) in top right below top header.
-  - High-performance GPU `InstancedMesh` rendering for scale ($N = 2,500+$ spheres in 3 WebGL draw calls).
-  - Interactive GPU raycasting with minimalist hover text label (`"/spherename"`).
-  - Double-click 3D raycast interaction to enter any 3D sphere map directly.
-  - Login-protected creation modal for spawning new 3D sphere planets directly into galactic space and persisting to Supabase PostgreSQL.
+  - Interactive 2D Knowledge Graph rendering with configurable node size and edge weight parameters.
+  - Responsive landscape layout auto-stretching across device aspect ratios (widescreen, desktop, tablet, mobile).
+  - Smooth 2D Pan & Zoom canvas navigation with fit-to-screen controls.
+  - Minimalist floating action button (`"+ Create Sphere"`) in top right below header.
+  - Hover interaction displaying clean monospace hover text label (`"/spherename"`).
+  - Double-click interaction on graph nodes to enter the selected 2D Territory Map directly.
+  - Login-protected modal for creating and spawning new community sphere nodes into the graph & Supabase database.
 
 ---
 
@@ -19,10 +20,10 @@ The **Code Galaxy View** is the network-level 3D constellation engine of OOMFS. 
 
 ```
 CodeGalaxyPage.tsx
- ├── GalaxyCanvas.tsx           (Native Three.js WebGL canvas, InstancedMesh pipeline, 6-DOF Fly controls, dblclick raycasting)
+ ├── GalaxyCanvas.tsx           (High-DPI 2D Canvas Knowledge Graph renderer, landscape layout engine, pan/zoom, edge/node hit testing)
  ├── Top-Right Action Button    (Floating Create Sphere trigger below header)
  ├── Cursor Hover Label         (Pure minimalist "/spherename" text floating near mouse cursor on node hover)
- └── Create New Sphere Modal    (Form to configure and spawn a new 3D sphere planet into Supabase, pre-filled with @currentUser.username)
+ └── Create New Sphere Modal    (Form to configure and spawn a new sphere node into Supabase, pre-filled with @currentUser.username)
 ```
 
 ### Component Props Contract
@@ -41,23 +42,20 @@ interface CodeGalaxyPageProps {
 
 ---
 
-## 🌌 3D WebGL Galaxy Engine ([GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx))
+## 🕸️ 2D Knowledge Graph Engine ([GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx))
 
-### 1. `InstancedMesh` GPU Pipeline & Calm Blue Skybox
-To scale to thousands of items without CPU scene-graph draw call bottlenecking, [GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx) renders all sphere planet nodes and orbital wireframe rings using `THREE.InstancedMesh`:
-- **Planet Mesh**: Single `InstancedMesh` with `SphereGeometry(0.75, 16, 16)`. Per-instance positions and theme colors (`instanceColor`).
-- **Ring Mesh**: Single `InstancedMesh` with `TorusGeometry(1.25, 0.025, 8, 24)`.
-- **Calm Blue Atmospheric Skysphere**: Custom inverted `ShaderMaterial` skysphere (`radius: 1000`, `depthWrite: false`) featuring a calm gradient from deep azure zenith (`#0c4a6e`) to cerulean sky blue (`#0284c7`), soft hazy pastel horizon (`#bae6fd`), and lower atmosphere blue (`#0369a1`), matching the 3D Sphere Map floating atmosphere.
+### 1. Landscape Layout & Aspect-Ratio Scaling
+- Evaluates container aspect ratio (`width / height`) dynamically to stretch the graph in a wide landscape format across screen resolutions.
+- Computes node positions using a landscape-optimized graph positioning algorithm (central master node surrounded by community cluster nodes with connecting graph edges).
 
-### 2. First-Person 6-DOF Fly & Pan Camera Controls
-Replaces single-pivot `OrbitControls` with a pure First-Person flight controller:
-- **Left-Click + Mouse Drag**: Rotates camera viewing angle (Pitch & Yaw) freely in 360° around eye origin.
-- **Right-Click / Middle-Click + Mouse Drag**: Pans camera position sideways and vertically in screen space.
-- **`WASD` / Arrow Keys / Scroll**: Propels camera position smoothly through 3D galactic space with velocity damping.
+### 2. Graph Nodes & Interconnecting Edges
+- **Nodes**: Rendered with glowing ambient radial gradients, theme-colored inner rings, and configurable radius parameters.
+- **Edges**: Interconnecting network lines between related spheres rendered with semi-transparent cyan/blue gradients, animated pulse pulses, and configurable line width.
 
-### 3. Hover Label & Double-Click Interaction
-- **Hover**: Uses `raycaster.intersectObject(planetInstancedMesh)` to locate `intersects[0].instanceId` in $O(1)$ time. Shows a clean `"/spherename"` monospace text label next to the cursor with no card backdrops, borders, or buttons.
-- **Double-Click**: Listens to `dblclick` events. Double-clicking any 3D planet node selects that sphere and executes `onGoToMap()`, smoothly loading into the 3D Sphere Map view.
+### 3. Pan, Zoom & Hit-Testing Interactions
+- **Pan & Zoom**: Smooth click-and-drag pan, mouse wheel zoom ($0.4\times$ to $4.0\times$), and responsive auto-fit bounds.
+- **Hover**: Calculates mouse distance to node centers in 2D screen space. Highlights hovered node, amplifies connected edges, and exposes node name in `handleHoverSphere`.
+- **Double-Click**: Double-clicking any graph node selects the sphere and triggers `onGoToMap()` to transition into the 2D Territory Map view.
 
 ---
 
@@ -67,5 +65,6 @@ Replaces single-pivot `OrbitControls` with a pure First-Person flight controller
    - Only authenticated users (`currentUser !== null`) can open the *Create New Sphere* modal. Unauthenticated visitors clicking "+ Create Sphere" trigger `onOpenAuthModal('login')`.
 2. **Persistence Guarantee**:
    - When a user submits the *Create New Sphere* form, pass the `SphereItem` to `onCreateSphere()`, which calls `saveSphereToSupabase()` in [sphereService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/sphereService.ts) to permanently save it to PostgreSQL.
-3. **Canvas Performance**:
-   - Do NOT replace `InstancedMesh` in [GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx) with individual `THREE.Mesh` objects, as doing so will break 60 FPS performance when scaling to thousands of spheres.
+3. **Graph Parametrization**:
+   - Keep node radii, edge stroke widths, and cluster spacing variables configurable via clear parameter constants so future size tuning can be applied seamlessly.
+

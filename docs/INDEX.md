@@ -6,11 +6,11 @@ Welcome to the **OOMFS Territory Conquest & Follower Network Map** codebase cont
 
 ## 🌟 Core System Architecture
 
-**OOMFS** maps social relationships, mutual follower network connections, and weighted community contributions onto full-bleed 2D proportional territory maps and macro 3D constellation starfields.
+**OOMFS** maps social relationships, mutual follower network connections, and weighted community contributions onto full-bleed 2D proportional territory maps and responsive landscape 2D Knowledge Graph network maps.
 
 - **Frontend Framework**: React 18 + TypeScript (Strict Mode) + Vite 5 + Tailwind CSS
-- **2D Canvas Graphics**: High-DPI HTML5 Canvas + Offscreen Texture Pipeline (`drawRegionTexture`)
-- **3D WebGL Graphics**: Three.js (`InstancedMesh`, `SphereGeometry`, 6-DOF Fly Controls, Raycasting)
+- **2D Territory Map Canvas**: High-DPI HTML5 Canvas + Offscreen Texture Pipeline (`drawRegionTexture`)
+- **2D Knowledge Graph Canvas**: High-DPI HTML5 Canvas + Landscape Node & Edge Network Graph Layout Engine
 - **Territory Layout Engine**: Squarified Treemap Partitioning (Bruls et al. algorithm)
 - **Backend Infrastructure**: Supabase PostgreSQL (`profiles`, `spheres`) + S3 Storage Bucket (`sphere-images`)
 
@@ -28,8 +28,8 @@ The top navigation header ([Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20OR
                        ┌───────────────────────┼───────────────────────┐
                  ┌─────▼─────┐           ┌─────▼─────┐           ┌─────▼─────┐
                  │ oomfs.org/│           │ 🌐 Studio │           │ {owner}   │
-                 │ Code      │           │ Territory │           │ Member    │
-                 │ Galaxy    │           │ Config    │           │ Profile   │
+                 │ 2D Graph  │           │ Territory │           │ Member    │
+                 │ View      │           │ Config    │           │ Profile   │
                  └───────────┘           └───────────┘           └───────────┘
 ```
 
@@ -44,7 +44,7 @@ Read the dedicated context specs below for full component contracts, state flow,
 | **Header Navigation Bar** | [Header.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/Header.tsx) | Frameless persistent header overlay (`oomfs.org • @sphereowner ... @yourname`), active tab router, and user menu dropdown. See [HEADER_NAVBAR.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/HEADER_NAVBAR.md). |
 | **2D Territory Map** | [FlatMapCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/FlatMapCanvas.tsx) | Core interactive 2D map canvas, Squarified Treemap layout, full-bleed aspect-ratio responsiveness, zero-sum area sliders, pan/zoom controls, and 1-per-tile custom images. See [3D_SPHERE_MAP_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/3D_SPHERE_MAP_PAGE.md). |
 | **Sphere Studio & Config** | [SphereStudioPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereStudioPage.tsx) | Full-bleed administrative studio portal. Controls grid resolution, conquest area sliders, allocation presets, custom tile texture uploads, and sticky embedded live 2D map preview. See [SPHERE_STUDIO_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_STUDIO_PAGE.md). |
-| **Code Galaxy** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Network-level 3D constellation view ($N=2,500+$ follower nodes). Features double-click map entry and minimalist `"/spherename"` cursor hover labels. See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
+| **2D Knowledge Graph (Code Galaxy)** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Network-level 2D Knowledge Graph view ($N=2,500+$ sphere nodes). Features double-click map entry and minimalist `"/spherename"` cursor hover labels. See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
 | **Sphere Owner Profile** | [SphereOwnerPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereOwnerPage.tsx) | Dedicated profile page for the permanent Sphere Host (`@oomf_architect`, master node anchor). See [SPHERE_OWNER_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_OWNER_PAGE.md). |
 | **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Account profile manager floating over full-bleed sky atmosphere. Bio editor, Twitter/𝕏 handle linking, custom media carousels, and image lightbox. See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
 

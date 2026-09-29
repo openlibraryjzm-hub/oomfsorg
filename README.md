@@ -1,12 +1,12 @@
 # OOMFS Territory Conquest & Social Network Map
 
-An interactive, high-performance WebGL & 2D Canvas application built with **React 18**, **TypeScript**, **Vite 5**, **Tailwind CSS**, **Three.js**, and **Supabase**. It visualizes user network relationships, OOMF (one-of-my-followers / mutual) connections, and value-weighted territory conquest across full-bleed responsive 2D Proportional Maps and 3D constellation universes.
+An interactive, high-performance WebGL & 2D Canvas application built with **React 18**, **TypeScript**, **Vite 5**, **Tailwind CSS**, and **Supabase**. It visualizes user network relationships, OOMF (one-of-my-followers / mutual) connections, and value-weighted territory conquest across full-bleed responsive 2D Proportional Maps and 2D Knowledge Graph network maps.
 
 ---
 
 ## 🌟 Project Purpose & Core Concept
 
-**OOMFS** maps social relationships, follower connections, and weighted community contributions onto interactive 2D territory maps and macro-scale 3D galaxy starfields.
+**OOMFS** maps social relationships, follower connections, and weighted community contributions onto interactive 2D territory maps and landscape 2D Knowledge Graph maps.
 
 The application supports two foundational paradigms:
 
@@ -28,9 +28,9 @@ The application supports two foundational paradigms:
 - **Frontend Framework**: React 18 (Functional Components, Custom Hooks)
 - **Language**: TypeScript (Strict Mode)
 - **Build Tool & Dev Server**: Vite 5
-- **2D & 3D Graphics Engines**:
+- **2D Graphics Engines**:
   - **2D Flat Map**: High-DPI HTML5 Canvas + Offscreen Texture Pipeline + Squarified Treemap Solver
-  - **3D Constellation**: Three.js (`THREE.InstancedMesh`, 6-DOF Fly Controls, Raycasting)
+  - **2D Knowledge Graph**: Responsive Landscape 2D Canvas Engine (Node & Edge Network Graph Layout, Pan/Zoom, Hit-Testing)
 - **Backend & Database**: Supabase (PostgreSQL + S3 Storage Buckets)
 - **Styling**: Tailwind CSS + Glassmorphism UI
 - **Icons**: Lucide React
@@ -49,9 +49,9 @@ OOMFS ORG/
 │   │   ├── Header.tsx               # Frameless oomfs.org top navigation bar & router
 │   │   ├── FlatMapCanvas.tsx        # High-DPI 2D full-bleed responsive map canvas (pan/zoom/raycasting)
 │   │   ├── RightDockPanel.tsx       # Unified 3-Tab Control & Inspector Dock with View-Only Lock Banner
-      ├── SphereStudioPage.tsx     # Full-bleed Territory Map Studio & Config Portal
-│   │   ├── CodeGalaxyPage.tsx       # Network 3D Galaxy View HUD overlay & creation modal
-│   │   ├── GalaxyCanvas.tsx         # Three.js 3D WebGL Galaxy starfield & InstancedMesh GPU pipeline
+│   │   ├── SphereStudioPage.tsx     # Full-bleed Territory Map Studio & Config Portal
+│   │   ├── CodeGalaxyPage.tsx       # 2D Knowledge Graph View HUD overlay & creation modal
+│   │   ├── GalaxyCanvas.tsx         # High-DPI 2D Canvas Knowledge Graph & landscape layout engine
 │   │   ├── MemberProfilePage.tsx    # Page-sized account profile manager (bio, Twitter link, carousels)
 │   │   └── SphereOwnerPage.tsx      # Permanent Sphere Host profile view
 │   ├── types/

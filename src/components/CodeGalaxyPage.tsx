@@ -83,7 +83,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
       id: `sphere-${Date.now()}`,
       name: newSphereName.trim(),
       ownerName: newOwnerName.trim(),
-      description: newDescription.trim() || 'Custom 3D OOMFS Community Globe',
+      description: newDescription.trim() || 'Custom 2D OOMFS Community Node',
       mappingMode: newMappingMode,
       userCount: newUserCount,
       gridResolution: newGridResolution,
@@ -111,7 +111,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
       
-      {/* 1. Native 3D Three.js Galaxy Canvas */}
+      {/* 1. Interactive 2D Canvas Knowledge Graph */}
       <GalaxyCanvas
         spheres={spheres}
         selectedSphereId={selectedSphereId}
@@ -176,7 +176,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-2">
                 <Globe2 className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-lg font-bold text-white">Create New 3D Sphere Planet</h2>
+                <h2 className="text-lg font-bold text-white">Create New Community Sphere Node</h2>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
@@ -329,7 +329,7 @@ export const CodeGalaxyPage: React.FC<CodeGalaxyPageProps> = ({
                   type="submit"
                   className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black"
                 >
-                  Spawn 3D Planet
+                  Spawn Graph Node
                 </button>
               </div>
 

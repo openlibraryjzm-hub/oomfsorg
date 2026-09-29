@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { SphereItem, MapTheme } from '../types/map';
 
 export interface ScreenPositionUpdate {
@@ -7,6 +6,30 @@ export interface ScreenPositionUpdate {
   y: number;
   visible: boolean;
 }
+
+export interface GraphParameters {
+  baseNodeRadius: number;
+  masterNodeRadius: number;
+  hoverNodeScale: number;
+  selectedNodeScale: number;
+  baseEdgeWidth: number;
+  highlightEdgeWidth: number;
+  clusterSpreadX: number;
+  clusterSpreadY: number;
+  pulseSpeed: number;
+}
+
+export const DEFAULT_GRAPH_PARAMS: GraphParameters = {
+  baseNodeRadius: 18,
+  masterNodeRadius: 28,
+  hoverNodeScale: 1.35,
+  selectedNodeScale: 1.4,
+  baseEdgeWidth: 1.5,
+  highlightEdgeWidth: 3.2,
+  clusterSpreadX: 520,
+  clusterSpreadY: 260,
+  pulseSpeed: 0.0012,
+};
 
 interface GalaxyCanvasProps {
   spheres: SphereItem[];
@@ -16,43 +39,141 @@ interface GalaxyCanvasProps {
   onDoubleClickSphere?: (sphereId: string) => void;
   onHoverSphere: (sphereId: string | null, mousePos?: { x: number; y: number }) => void;
   onSelectedScreenPosUpdate?: (pos: ScreenPositionUpdate | null) => void;
+  graphParams?: Partial<GraphParameters>;
 }
 
-// Theme color map for 3D sphere node materials
-const THEME_COLORS: Record<MapTheme, THREE.Color> = {
-  neon: new THREE.Color(0x00f3ff),
-  topographic: new THREE.Color(0x10b981),
-  heatmap: new THREE.Color(0xf59e0b),
-  wireframe: new THREE.Color(0x3b82f6),
-  minimal: new THREE.Color(0x94a3b8),
-  cyber: new THREE.Color(0xa855f7),
+// Theme color map for 2D Knowledge Graph nodes
+const THEME_HEX: Record<MapTheme, { primary: string; glow: string; core: string }> = {
+  neon: { primary: '#00f3ff', glow: 'rgba(0, 243, 255, 0.4)', core: '#e0f7fa' },
+  topographic: { primary: '#10b981', glow: 'rgba(16, 185, 129, 0.4)', core: '#ecfdf5' },
+  heatmap: { primary: '#f59e0b', glow: 'rgba(245, 158, 11, 0.4)', core: '#fffbeb' },
+  wireframe: { primary: '#3b82f6', glow: 'rgba(59, 130, 246, 0.4)', core: '#eff6ff' },
+  minimal: { primary: '#94a3b8', glow: 'rgba(148, 163, 184, 0.4)', core: '#f8fafc' },
+  cyber: { primary: '#a855f7', glow: 'rgba(168, 85, 247, 0.4)', core: '#faf5ff' },
 };
 
+export interface GraphNode {
+  id: string;
+  sphere: SphereItem;
+  x: number;
+  y: number;
+  radius: number;
+  color: { primary: string; glow: string; core: string };
+  isMaster: boolean;
+}
+
+export interface GraphEdge {
+  sourceId: string;
+  targetId: string;
+  sourceIndex: number;
+  targetIndex: number;
+  weight: number;
+}
+
 /**
- * Calculates a 3D logarithmic spiral galaxy disk position for node `index` out of `total`.
+ * Calculates responsive landscape 2D Knowledge Graph node positions.
+ * Spreads nodes horizontally across wider viewports according to container aspect ratio.
  */
-export function getGalacticDiskPosition(index: number, total: number): THREE.Vector3 {
-  if (index === 0) return new THREE.Vector3(0, 0, 0); // Center prime node
+export function calculateKnowledgeGraphLayout(
+  spheres: SphereItem[],
+  aspectRatio: number,
+  params: GraphParameters
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const count = spheres.length;
+  if (count === 0) return { nodes: [], edges: [] };
 
-  const arms = 4; // 4 spiral galaxy arms
-  const armAngle = ((index % arms) * (2 * Math.PI)) / arms;
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
 
-  // Logarithmic spiral radius
-  const distRatio = Math.pow(index / total, 0.55);
-  const radius = 3.5 + distRatio * 75;
+  // Landscape spread factor scales with viewport aspect ratio (min 1.0)
+  const aspectMultiplier = Math.max(1.0, aspectRatio / 1.4);
+  const spreadX = params.clusterSpreadX * aspectMultiplier;
+  const spreadY = params.clusterSpreadY;
 
-  // Spiral swirl angle
-  const swirl = radius * 0.18;
-  const theta = armAngle + swirl + ((index % 17) * 0.05);
+  spheres.forEach((sphere, i) => {
+    const isMaster = i === 0;
+    const themeColor = THEME_HEX[sphere.theme] || THEME_HEX.neon;
+    const radius = isMaster ? params.masterNodeRadius : params.baseNodeRadius;
 
-  // Vertical disk thickness with Gaussian-like center bulge
-  const heightFactor = Math.exp(-radius / 30);
-  const y = (Math.sin(index * 1.3) * 3.5 + (Math.random() - 0.5) * 2) * heightFactor;
+    let x = 0;
+    let y = 0;
 
-  const x = radius * Math.cos(theta) + (Math.sin(index * 2.7) * 1.2);
-  const z = radius * Math.sin(theta) + (Math.cos(index * 3.1) * 1.2);
+    if (!isMaster) {
+      // Clustered logarithmic landscape distribution
+      const ringIndex = Math.floor(Math.sqrt(i));
+      const itemsInRing = ringIndex * 4 + 2;
+      const angleInRing = ((i % itemsInRing) / itemsInRing) * 2 * Math.PI;
 
-  return new THREE.Vector3(x, y, z);
+      // Seeded deterministic offset for node uniqueness
+      const seed = sphere.seed || (i * 9301 + 49297) % 233280;
+      const jitterX = ((seed % 100) / 100 - 0.5) * 45;
+      const jitterY = (((seed * 13) % 100) / 100 - 0.5) * 35;
+
+      const ringRadiusX = (ringIndex * 140 + 130) * (spreadX / 400);
+      const ringRadiusY = (ringIndex * 90 + 75) * (spreadY / 250);
+
+      x = Math.cos(angleInRing) * ringRadiusX + jitterX;
+      y = Math.sin(angleInRing) * ringRadiusY + jitterY;
+    }
+
+    nodes.push({
+      id: sphere.id,
+      sphere,
+      x,
+      y,
+      radius,
+      color: themeColor,
+      isMaster,
+    });
+  });
+
+  // Build graph edges connecting related community nodes
+  for (let i = 0; i < count; i++) {
+    const nodeA = nodes[i];
+
+    // 1. Connect Master node to primary tier-1 nodes
+    if (i > 0 && i <= Math.min(6, count - 1)) {
+      edges.push({
+        sourceId: nodes[0].id,
+        targetId: nodeA.id,
+        sourceIndex: 0,
+        targetIndex: i,
+        weight: 1.0,
+      });
+    }
+
+    // 2. Sequential ring connection
+    if (i > 1) {
+      edges.push({
+        sourceId: nodes[i - 1].id,
+        targetId: nodeA.id,
+        sourceIndex: i - 1,
+        targetIndex: i,
+        weight: 0.65,
+      });
+    }
+
+    // 3. Theme/Mode similarity edge connection
+    for (let j = i + 1; j < count; j++) {
+      const nodeB = nodes[j];
+      const sameTheme = nodeA.sphere.theme === nodeB.sphere.theme;
+      const sameMode = nodeA.sphere.mappingMode === nodeB.sphere.mappingMode;
+      const distSq = (nodeA.x - nodeB.x) ** 2 + (nodeA.y - nodeB.y) ** 2;
+
+      // Add edge if close proximity in 2D space or matching metadata
+      if ((sameTheme && distSq < (spreadX * 0.7) ** 2) || (sameMode && distSq < (spreadX * 0.45) ** 2)) {
+        edges.push({
+          sourceId: nodeA.id,
+          targetId: nodeB.id,
+          sourceIndex: i,
+          targetIndex: j,
+          weight: 0.5,
+        });
+      }
+    }
+  }
+
+  return { nodes, edges };
 }
 
 export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
@@ -63,441 +184,434 @@ export const GalaxyCanvas: React.FC<GalaxyCanvasProps> = ({
   onDoubleClickSphere,
   onHoverSphere,
   onSelectedScreenPosUpdate,
+  graphParams: customGraphParams,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const planetInstancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const positionsRef = useRef<THREE.Vector3[]>([]);
-  const keysPressedRef = useRef<Record<string, boolean>>({});
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Dynamic props refs for frame-by-frame projection without re-initializing scene
+  // Merge graph parameters
+  const params = useMemo<GraphParameters>(() => {
+    return { ...DEFAULT_GRAPH_PARAMS, ...customGraphParams };
+  }, [customGraphParams]);
+
+  // Viewport Pan & Zoom state
+  const panRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const zoomRef = useRef<number>(1.0);
+  const isDraggingRef = useRef<boolean>(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Animation pulse offset
+  const pulsePhaseRef = useRef<number>(0);
+
+  // Dynamic prop references for continuous animation loop
   const spheresRef = useRef(spheres);
   spheresRef.current = spheres;
 
   const selectedSphereIdRef = useRef(selectedSphereId);
   selectedSphereIdRef.current = selectedSphereId;
 
-  const onSelectedScreenPosUpdateRef = useRef(onSelectedScreenPosUpdate);
-  onSelectedScreenPosUpdateRef.current = onSelectedScreenPosUpdate;
+  const hoveredSphereIdRef = useRef(hoveredSphereId);
+  hoveredSphereIdRef.current = hoveredSphereId;
+
+  const onHoverSphereRef = useRef(onHoverSphere);
+  onHoverSphereRef.current = onHoverSphere;
+
+  const onSelectSphereRef = useRef(onSelectSphere);
+  onSelectSphereRef.current = onSelectSphere;
 
   const onDoubleClickSphereRef = useRef(onDoubleClickSphere);
   onDoubleClickSphereRef.current = onDoubleClickSphere;
 
-  // Pure First-Person Fly Camera State (Anvaka Style)
-  const isDraggingLeftRef = useRef<boolean>(false);
-  const isDraggingRightRef = useRef<boolean>(false);
-  const lastMousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const yawRef = useRef<number>(0);
-  const pitchRef = useRef<number>(0);
-  const moveVelocityRef = useRef<THREE.Vector3>(new THREE.Vector3());
+  const onSelectedScreenPosUpdateRef = useRef(onSelectedScreenPosUpdate);
+  onSelectedScreenPosUpdateRef.current = onSelectedScreenPosUpdate;
 
-  useEffect(() => {
+  // Cached layout data
+  const layoutRef = useRef<{ nodes: GraphNode[]; edges: GraphEdge[] }>({ nodes: [], edges: [] });
+
+  // Update layout when spheres change or container resizes
+  const updateLayout = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const count = spheres.length;
+    const width = container.clientWidth || 1000;
+    const height = container.clientHeight || 700;
+    const aspectRatio = width / height;
 
-    // 1. Scene Setup: Calm Blue Sky Atmospheric Skysphere
-    const scene = new THREE.Scene();
+    layoutRef.current = calculateKnowledgeGraphLayout(spheresRef.current, aspectRatio, params);
+  }, [params]);
 
-    const skysphereGeo = new THREE.SphereGeometry(1000, 64, 32);
-    const skysphereMat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      uniforms: {
-        topColor: { value: new THREE.Color('#0c4a6e') },      // Deep Calm Azure Zenith
-        midColor: { value: new THREE.Color('#0284c7') },      // Cerulean Sky Blue
-        horizonColor: { value: new THREE.Color('#bae6fd') },  // Soft Hazy Pastel Horizon Light
-        bottomColor: { value: new THREE.Color('#0369a1') },   // Calm Lower Atmosphere Blue
-      },
-      vertexShader: `
-        varying vec3 vWorldPosition;
-        void main() {
-          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldPosition = worldPosition.xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vWorldPosition;
-        uniform vec3 topColor;
-        uniform vec3 midColor;
-        uniform vec3 horizonColor;
-        uniform vec3 bottomColor;
+  // Recalculate layout whenever spheres list changes
+  useEffect(() => {
+    updateLayout();
+  }, [spheres, updateLayout]);
 
-        void main() {
-          float h = normalize(vWorldPosition).y;
-          vec3 finalColor;
+  // Main 2D Canvas Render & Animation Loop
+  useEffect(() => {
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
 
-          if (h > 0.0) {
-            float mixFactor = smoothstep(0.0, 0.7, h);
-            finalColor = mix(horizonColor, topColor, mixFactor);
-            float skyFactor = sin(smoothstep(0.0, 0.9, h) * 3.14159);
-            finalColor = mix(finalColor, midColor, skyFactor * 0.35);
-          } else {
-            float mixFactor = smoothstep(0.0, -0.8, h);
-            finalColor = mix(horizonColor, bottomColor, mixFactor);
-          }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-          gl_FragColor = vec4(finalColor, 1.0);
-        }
-      `,
-    });
-    const skysphereMesh = new THREE.Mesh(skysphereGeo, skysphereMat);
-    scene.add(skysphereMesh);
-
-    // 2. Camera Setup
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1200
-    );
-    camera.position.set(0, 18, 55);
-    camera.lookAt(0, 0, 0);
-    cameraRef.current = camera;
-
-    // Initialize pitch/yaw from initial camera direction
-    const initDir = new THREE.Vector3(0, 0, 0).sub(camera.position).normalize();
-    pitchRef.current = Math.asin(initDir.y);
-    yawRef.current = Math.atan2(initDir.x, initDir.z);
-
-    // 3. Renderer Setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.toneMapping = THREE.NoToneMapping;
-    container.appendChild(renderer.domElement);
-
-    // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
-    scene.add(ambientLight);
-
-    const pointLight = new THREE.PointLight(0x00f3ff, 2.5, 100);
-    pointLight.position.set(0, 15, 0);
-    scene.add(pointLight);
-
-    // 5. InstancedMesh Pipeline for 2,500+ Sphere Nodes (1 Draw Call!)
-    const planetGeo = new THREE.SphereGeometry(0.75, 16, 16);
-    const planetMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const planetInstancedMesh = new THREE.InstancedMesh(planetGeo, planetMat, count);
-    planetInstancedMeshRef.current = planetInstancedMesh;
-
-    // Ring Instanced Mesh (1 Draw Call!)
-    const ringGeo = new THREE.TorusGeometry(1.25, 0.025, 8, 24);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.5, wireframe: true });
-    const ringInstancedMesh = new THREE.InstancedMesh(ringGeo, ringMat, count);
-
-    const dummy = new THREE.Object3D();
-    const positions: THREE.Vector3[] = [];
-
-    spheres.forEach((sphere, i) => {
-      const pos = getGalacticDiskPosition(i, count);
-      positions.push(pos);
-
-      // Set matrix transformation
-      dummy.position.copy(pos);
-      dummy.scale.set(1, 1, 1);
-      dummy.updateMatrix();
-
-      planetInstancedMesh.setMatrixAt(i, dummy.matrix);
-
-      dummy.rotation.x = Math.PI / 3;
-      dummy.updateMatrix();
-      ringInstancedMesh.setMatrixAt(i, dummy.matrix);
-
-      // Set theme color
-      const color = THEME_COLORS[sphere.theme] || THEME_COLORS.neon;
-      planetInstancedMesh.setColorAt(i, color);
-    });
-
-    planetInstancedMesh.instanceMatrix.needsUpdate = true;
-    if (planetInstancedMesh.instanceColor) planetInstancedMesh.instanceColor.needsUpdate = true;
-
-    ringInstancedMesh.instanceMatrix.needsUpdate = true;
-
-    scene.add(planetInstancedMesh);
-    scene.add(ringInstancedMesh);
-
-    positionsRef.current = positions;
-
-    // 7. Pure First-Person Fly & Pan Camera Controls (Anvaka Style)
-    const handleMouseDown = (e: MouseEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
-
-      if (e.button === 0) isDraggingLeftRef.current = true;
-      if (e.button === 2 || e.button === 1) isDraggingRightRef.current = true;
-
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const handleMouseUp = () => {
-      isDraggingLeftRef.current = false;
-      isDraggingRightRef.current = false;
-    };
-
-    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
-
-    const handlePointerMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - lastMousePosRef.current.x;
-      const deltaY = e.clientY - lastMousePosRef.current.y;
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-
-      // Left Click Drag: Look / Rotate camera view (Pitch & Yaw around eye position)
-      if (isDraggingLeftRef.current) {
-        const lookSens = 0.003;
-        yawRef.current -= deltaX * lookSens;
-        pitchRef.current -= deltaY * lookSens;
-
-        const maxPitch = (Math.PI / 2) - 0.02;
-        pitchRef.current = Math.max(-maxPitch, Math.min(maxPitch, pitchRef.current));
-      }
-
-      // Right Click Drag: Pan camera position sideways and vertically
-      if (isDraggingRightRef.current) {
-        const panSens = 0.08;
-        const lookDir = new THREE.Vector3(
-          Math.sin(yawRef.current) * Math.cos(pitchRef.current),
-          Math.sin(pitchRef.current),
-          Math.cos(yawRef.current) * Math.cos(pitchRef.current)
-        );
-
-        const right = new THREE.Vector3().crossVectors(lookDir, camera.up).normalize();
-        const up = new THREE.Vector3().crossVectors(right, lookDir).normalize();
-
-        camera.position.addScaledVector(right, -deltaX * panSens);
-        camera.position.addScaledVector(up, deltaY * panSens);
-      }
-
-      // Instanced Raycasting against 2,500+ sphere nodes
-      const rect = container.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1
-      );
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      const intersects = raycaster.intersectObject(planetInstancedMesh);
-
-      if (intersects.length > 0 && intersects[0].instanceId !== undefined) {
-        const idx = intersects[0].instanceId;
-        const targetSphere = spheres[idx];
-        if (targetSphere) {
-          onHoverSphere(targetSphere.id, { x: e.clientX, y: e.clientY });
-          container.style.cursor = 'pointer';
-          return;
-        }
-      }
-
-      onHoverSphere(null);
-      container.style.cursor = isDraggingLeftRef.current ? 'crosshair' : 'grab';
-    };
-
-    const handleClick = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1
-      );
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      const intersects = raycaster.intersectObject(planetInstancedMesh);
-
-      if (intersects.length > 0 && intersects[0].instanceId !== undefined) {
-        const idx = intersects[0].instanceId;
-        const targetSphere = spheres[idx];
-        if (targetSphere) {
-          onSelectSphere(targetSphere.id);
-        }
-      }
-    };
-
-    const handleDblClick = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1
-      );
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      const intersects = raycaster.intersectObject(planetInstancedMesh);
-
-      if (intersects.length > 0 && intersects[0].instanceId !== undefined) {
-        const idx = intersects[0].instanceId;
-        const targetSphere = spheres[idx];
-        if (targetSphere && onDoubleClickSphereRef.current) {
-          onDoubleClickSphereRef.current(targetSphere.id);
-        }
-      }
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const zoomSens = 0.08;
-      const lookDir = new THREE.Vector3(
-        Math.sin(yawRef.current) * Math.cos(pitchRef.current),
-        Math.sin(pitchRef.current),
-        Math.cos(yawRef.current) * Math.cos(pitchRef.current)
-      );
-
-      camera.position.addScaledVector(lookDir, -e.deltaY * zoomSens);
-    };
-
-    container.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-    container.addEventListener('mousemove', handlePointerMove);
-    container.addEventListener('click', handleClick);
-    container.addEventListener('dblclick', handleDblClick);
-    container.addEventListener('contextmenu', handleContextMenu);
-    container.addEventListener('wheel', handleWheel, { passive: false });
-
-    // 8. Keyboard Flight Controls
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
-      keysPressedRef.current[e.code] = true;
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressedRef.current[e.code] = false;
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    // 9. Resize Handler
-    const handleResize = () => {
-      if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    // 10. High-Performance Animation Loop
     let animationFrameId: number;
 
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
+    const handleResize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = container.clientWidth;
+      const height = container.clientHeight;
 
-      // Calculate camera orientation direction
-      const lookDir = new THREE.Vector3(
-        Math.sin(yawRef.current) * Math.cos(pitchRef.current),
-        Math.sin(pitchRef.current),
-        Math.cos(yawRef.current) * Math.cos(pitchRef.current)
-      );
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
 
-      // Set camera rotation
-      const targetLook = camera.position.clone().add(lookDir);
-      camera.lookAt(targetLook);
+      ctx.scale(dpr, dpr);
+      updateLayout();
+    };
 
-      // WASD Free Flight Movement
-      const keys = keysPressedRef.current;
-      const flySpeed = 0.6;
+    handleResize();
+    window.addEventListener('resize', handleResize);
 
-      if (
-        keys['KeyW'] || keys['ArrowUp'] ||
-        keys['KeyS'] || keys['ArrowDown'] ||
-        keys['KeyA'] || keys['ArrowLeft'] ||
-        keys['KeyD'] || keys['ArrowRight'] ||
-        keys['KeyE'] || keys['KeyQ']
-      ) {
-        const flyDir = lookDir.clone();
+    // Render loop
+    const render = () => {
+      animationFrameId = requestAnimationFrame(render);
 
-        const right = new THREE.Vector3().crossVectors(flyDir, camera.up).normalize();
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        if (keys['KeyW'] || keys['ArrowUp']) moveVelocityRef.current.addScaledVector(flyDir, flySpeed);
-        if (keys['KeyS'] || keys['ArrowDown']) moveVelocityRef.current.addScaledVector(flyDir, -flySpeed);
-        if (keys['KeyD'] || keys['ArrowRight']) moveVelocityRef.current.addScaledVector(right, flySpeed);
-        if (keys['KeyA'] || keys['ArrowLeft']) moveVelocityRef.current.addScaledVector(right, -flySpeed);
-        if (keys['KeyE']) moveVelocityRef.current.y += flySpeed;
-        if (keys['KeyQ']) moveVelocityRef.current.y -= flySpeed;
+      // Advance edge pulse phase
+      pulsePhaseRef.current = (pulsePhaseRef.current + params.pulseSpeed) % 1.0;
+
+      // Reset transformation matrix
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      // 1. Draw Atmospheric Background & Subtle Landscape Grid Matrix
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+      bgGradient.addColorStop(0, '#040d1a');
+      bgGradient.addColorStop(0.5, '#07162c');
+      bgGradient.addColorStop(1, '#020914');
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw subtle background grid lines
+      ctx.strokeStyle = 'rgba(14, 165, 233, 0.05)';
+      ctx.lineWidth = 1;
+      const gridSize = 40 * zoomRef.current;
+      const offsetX = (width / 2 + panRef.current.x) % gridSize;
+      const offsetY = (height / 2 + panRef.current.y) % gridSize;
+
+      ctx.beginPath();
+      for (let gx = offsetX; gx < width; gx += gridSize) {
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, height);
       }
+      for (let gy = offsetY; gy < height; gy += gridSize) {
+        ctx.moveTo(0, gy);
+        ctx.lineTo(width, gy);
+      }
+      ctx.stroke();
 
-      // Apply velocity damping for smooth weightless space flight
-      camera.position.add(moveVelocityRef.current);
-      moveVelocityRef.current.multiplyScalar(0.88);
+      // Transform context to center origin + pan + zoom
+      const centerX = width / 2 + panRef.current.x;
+      const centerY = height / 2 + panRef.current.y;
+      const zoom = zoomRef.current;
 
-      renderer.render(scene, camera);
+      const { nodes, edges } = layoutRef.current;
+      const hoveredId = hoveredSphereIdRef.current;
+      const selectedId = selectedSphereIdRef.current;
 
-      // Project 3D position of selected sphere to 2D screen coordinates
-      const currentSelectedId = selectedSphereIdRef.current;
-      const callback = onSelectedScreenPosUpdateRef.current;
-      if (currentSelectedId && callback && container) {
-        const selectedIdx = spheresRef.current.findIndex(s => s.id === currentSelectedId);
-        if (selectedIdx !== -1 && positionsRef.current[selectedIdx]) {
-          const worldPos = positionsRef.current[selectedIdx].clone();
-          const tempVec = worldPos.clone();
-          tempVec.project(camera);
+      // Map node ID to screen position for fast lookup
+      const nodePosMap = new Map<string, { x: number; y: number; node: GraphNode }>();
+      nodes.forEach(node => {
+        const sx = centerX + node.x * zoom;
+        const sy = centerY + node.y * zoom;
+        nodePosMap.set(node.id, { x: sx, y: sy, node });
+      });
 
-          const isVisible =
-            tempVec.z <= 1.0 &&
-            tempVec.x >= -1.2 &&
-            tempVec.x <= 1.2 &&
-            tempVec.y >= -1.2 &&
-            tempVec.y <= 1.2;
+      // 2. Draw Knowledge Graph Edges
+      edges.forEach(edge => {
+        const sourceData = nodePosMap.get(edge.sourceId);
+        const targetData = nodePosMap.get(edge.targetId);
+        if (!sourceData || !targetData) return;
 
-          const screenX = ((tempVec.x + 1) * container.clientWidth) / 2;
-          const screenY = ((-tempVec.y + 1) * container.clientHeight) / 2;
+        const isHighlighted =
+          hoveredId === edge.sourceId ||
+          hoveredId === edge.targetId ||
+          selectedId === edge.sourceId ||
+          selectedId === edge.targetId;
 
-          callback({
-            x: screenX,
-            y: screenY,
-            visible: isVisible,
-          });
-        } else {
-          callback(null);
+        const strokeWidth = (isHighlighted ? params.highlightEdgeWidth : params.baseEdgeWidth) * zoom;
+        const alpha = isHighlighted ? 0.85 : 0.22;
+
+        ctx.save();
+        ctx.lineWidth = Math.max(0.8, strokeWidth);
+
+        // Gradient stroke between connected nodes
+        const edgeGrad = ctx.createLinearGradient(sourceData.x, sourceData.y, targetData.x, targetData.y);
+        edgeGrad.addColorStop(0, sourceData.node.color.glow.replace('0.4', `${alpha}`));
+        edgeGrad.addColorStop(1, targetData.node.color.glow.replace('0.4', `${alpha}`));
+        ctx.strokeStyle = edgeGrad;
+
+        ctx.beginPath();
+        ctx.moveTo(sourceData.x, sourceData.y);
+        ctx.lineTo(targetData.x, targetData.y);
+        ctx.stroke();
+
+        // Draw animated pulse particle along highlighted edge
+        if (isHighlighted) {
+          const t = (pulsePhaseRef.current * 3 + edge.weight) % 1.0;
+          const px = sourceData.x + (targetData.x - sourceData.x) * t;
+          const py = sourceData.y + (targetData.y - sourceData.y) * t;
+
+          ctx.fillStyle = sourceData.node.color.primary;
+          ctx.beginPath();
+          ctx.arc(px, py, 3.5 * zoom, 0, 2 * Math.PI);
+          ctx.fill();
         }
-      } else if (callback) {
-        callback(null);
+
+        ctx.restore();
+      });
+
+      // 3. Draw Knowledge Graph Nodes
+      let selectedScreenPos: ScreenPositionUpdate | null = null;
+
+      nodes.forEach(node => {
+        const pos = nodePosMap.get(node.id);
+        if (!pos) return;
+
+        const isHovered = hoveredId === node.id;
+        const isSelected = selectedId === node.id;
+
+        let scale = 1.0;
+        if (isSelected) scale = params.selectedNodeScale;
+        else if (isHovered) scale = params.hoverNodeScale;
+
+        const r = node.radius * scale * zoom;
+
+        ctx.save();
+
+        // Outer ambient glow halo
+        const haloGrad = ctx.createRadialGradient(pos.x, pos.y, r * 0.4, pos.x, pos.y, r * 2.2);
+        haloGrad.addColorStop(0, node.color.glow);
+        haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = haloGrad;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r * 2.2, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Primary outer ring
+        ctx.fillStyle = node.color.primary;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Selection / Hover outline ring
+        if (isSelected || isHovered) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = Math.max(2, 2.5 * zoom);
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r + 4 * zoom, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+
+        // Inner core
+        ctx.fillStyle = node.color.core;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r * 0.45, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Draw node title text label under node if zoomed in or master
+        if (zoom >= 0.75 || node.isMaster || isHovered || isSelected) {
+          ctx.fillStyle = isSelected || isHovered ? '#ffffff' : 'rgba(226, 232, 240, 0.75)';
+          ctx.font = `${node.isMaster ? 'bold 12px' : '10px'} monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText(node.sphere.name, pos.x, pos.y + r + 14 * zoom);
+        }
+
+        ctx.restore();
+
+        // Capture selected screen position
+        if (isSelected) {
+          const isVisible = pos.x >= 0 && pos.x <= width && pos.y >= 0 && pos.y <= height;
+          selectedScreenPos = { x: pos.x, y: pos.y, visible: isVisible };
+        }
+      });
+
+      // Report selected screen position update
+      if (onSelectedScreenPosUpdateRef.current) {
+        onSelectedScreenPosUpdateRef.current(selectedScreenPos);
       }
     };
 
-    animate();
+    render();
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      container.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mouseup', handleMouseUp);
-      container.removeEventListener('mousemove', handlePointerMove);
-      container.removeEventListener('click', handleClick);
-      container.removeEventListener('dblclick', handleDblClick);
-      container.removeEventListener('contextmenu', handleContextMenu);
-      container.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
     };
-  }, [spheres]);
+  }, [params, updateLayout]);
 
-  // Smooth camera glide to selected sphere when selection changes
-  useEffect(() => {
-    if (!selectedSphereId || !cameraRef.current) return;
-    const selectedIndex = spheres.findIndex(s => s.id === selectedSphereId);
-    if (selectedIndex !== -1 && positionsRef.current[selectedIndex]) {
-      const pos = positionsRef.current[selectedIndex];
-      const targetCamPos = pos.clone().add(new THREE.Vector3(0, 3, 10));
+  // Pointer Interaction Handlers
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Only primary left click drag
+    isDraggingRef.current = true;
+    dragStartRef.current = { x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y };
+  };
 
-      const dir = pos.clone().sub(targetCamPos).normalize();
-      pitchRef.current = Math.asin(dir.y);
-      yawRef.current = Math.atan2(dir.x, dir.z);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
 
-      cameraRef.current.position.copy(targetCamPos);
+    mousePosRef.current = { x: e.clientX, y: e.clientY };
+
+    // Pan map on mouse drag
+    if (isDraggingRef.current) {
+      panRef.current = {
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y,
+      };
+      container.style.cursor = 'grabbing';
     }
-  }, [selectedSphereId, spheres]);
 
-  return <div ref={containerRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />;
+    // Node hit testing in 2D screen coordinates
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const centerX = rect.width / 2 + panRef.current.x;
+    const centerY = rect.height / 2 + panRef.current.y;
+    const zoom = zoomRef.current;
+
+    const { nodes } = layoutRef.current;
+    let hovered: GraphNode | null = null;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const sx = centerX + node.x * zoom;
+      const sy = centerY + node.y * zoom;
+      const r = (node.radius + 8) * zoom;
+
+      const distSq = (mouseX - sx) ** 2 + (mouseY - sy) ** 2;
+      if (distSq <= r * r) {
+        hovered = node;
+        break;
+      }
+    }
+
+    if (hovered) {
+      container.style.cursor = 'pointer';
+      onHoverSphereRef.current(hovered.id, { x: e.clientX, y: e.clientY });
+    } else {
+      if (!isDraggingRef.current) container.style.cursor = 'grab';
+      onHoverSphereRef.current(null);
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    if (containerRef.current) containerRef.current.style.cursor = 'grab';
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const centerX = rect.width / 2 + panRef.current.x;
+    const centerY = rect.height / 2 + panRef.current.y;
+    const zoom = zoomRef.current;
+
+    const { nodes } = layoutRef.current;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const sx = centerX + node.x * zoom;
+      const sy = centerY + node.y * zoom;
+      const r = (node.radius + 8) * zoom;
+
+      const distSq = (mouseX - sx) ** 2 + (mouseY - sy) ** 2;
+      if (distSq <= r * r) {
+        onSelectSphereRef.current(node.id);
+        return;
+      }
+    }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const centerX = rect.width / 2 + panRef.current.x;
+    const centerY = rect.height / 2 + panRef.current.y;
+    const zoom = zoomRef.current;
+
+    const { nodes } = layoutRef.current;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const sx = centerX + node.x * zoom;
+      const sy = centerY + node.y * zoom;
+      const r = (node.radius + 8) * zoom;
+
+      const distSq = (mouseX - sx) ** 2 + (mouseY - sy) ** 2;
+      if (distSq <= r * r) {
+        onSelectSphereRef.current(node.id);
+        if (onDoubleClickSphereRef.current) {
+          onDoubleClickSphereRef.current(node.id);
+        }
+        return;
+      }
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+    const newZoom = Math.min(4.0, Math.max(0.4, zoomRef.current * zoomFactor));
+    zoomRef.current = newZoom;
+  };
+
+  const handleResetView = () => {
+    panRef.current = { x: 0, y: 0 };
+    zoomRef.current = 1.0;
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onWheel={handleWheel}
+      className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden"
+    >
+      <canvas ref={canvasRef} className="block w-full h-full" />
+
+      {/* Floating HUD controls for graph navigation reset */}
+      <div className="absolute bottom-6 left-6 z-20 flex items-center gap-2 pointer-events-auto">
+        <button
+          onClick={handleResetView}
+          className="px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-mono font-semibold backdrop-blur-md transition-all shadow-md cursor-pointer"
+        >
+          Reset Graph View
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default GalaxyCanvas;
