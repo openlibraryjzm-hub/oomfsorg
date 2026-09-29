@@ -18,6 +18,7 @@ export interface UserAccount {
   centroid2D: [number, number]; // Territory centroid on 2D texture
   isSystemReserved?: boolean; // True for North/South Polar Network Host Accounts
   customImage?: string; // Custom uploaded image data URL / image URL
+  rect2D?: { x: number; y: number; w: number; h: number }; // 2D layout rectangle (normalized 0..1)
 }
 
 export interface Region {

@@ -10,7 +10,7 @@ import {
   updateSphereInSupabase,
   uploadTileImageToSupabase
 } from './utils/sphereService';
-import { MapCanvas } from './components/MapCanvas';
+import { FlatMapCanvas } from './components/FlatMapCanvas';
 import { Header, NavigationTab } from './components/Header';
 import { FloatingInspectCard } from './components/FloatingInspectCard';
 import { SphereStudioPage } from './components/SphereStudioPage';
@@ -393,9 +393,9 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* 2. Background Native 3D Interactive Three.js Sphere Globe Canvas (Rendered ONLY on map view) */}
+      {/* 2. Background 2D Interactive Territory Map Canvas (Rendered ONLY on map view) */}
       {activeTab === 'map' && (
-        <MapCanvas
+        <FlatMapCanvas
           settings={settings}
           users={users}
           tiles={tiles}

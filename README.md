@@ -1,39 +1,40 @@
-# OOMFS Territory Conquest & Follower Sphere Map
+# OOMFS Territory Conquest & Social Network Map
 
-An interactive, high-performance WebGL application built with **React**, **TypeScript**, **Vite**, **Three.js**, **Tailwind CSS**, and **Supabase**. It visualizes user network relationships, OOMF (one-of-my-followers / mutual) connections, and value-weighted territory conquest on native 3D interactive sphere globes and a 3D constellation universe.
+An interactive, high-performance WebGL & 2D Canvas application built with **React 18**, **TypeScript**, **Vite 5**, **Tailwind CSS**, **Three.js**, and **Supabase**. It visualizes user network relationships, OOMF (one-of-my-followers / mutual) connections, and value-weighted territory conquest across full-bleed responsive 2D Proportional Maps and 3D constellation universes.
 
 ---
 
 ## 🌟 Project Purpose & Core Concept
 
-**OOMFS** maps social relationships, follower connections, and weighted community contributions onto interactive 3D WebGL globes and a macro-scale 3D Code Galaxy constellation universe.
+**OOMFS** maps social relationships, follower connections, and weighted community contributions onto interactive 2D territory maps and macro-scale 3D galaxy starfields.
 
 The application supports two foundational paradigms:
 
 1. **Value Conquest / Weighted Allocation Mode (`conquest`)**:
-   - Uses selectable grid resolutions of **256, 512, 1024, or 2048 3D quad tiles**.
-   - Active users ($U = 1 \dots N$) own discrete, contiguous territory clusters proportional to their target share percentage ($T_k = \text{round}(\text{TileCount} \times \text{Share}_k\%)$).
-   - Real-time zero-sum area sliders allow users to transfer territory tiles between accounts instantly.
-   - Ideal for value-weighted metrics (donations, staking %, network owner ratings, influence score).
+   - Uses **Squarified Treemap Partitioning** (Bruls et al. algorithm) to partition screen real estate into contiguous, aspect-ratio-optimized user territory blocks.
+   - Target area percentages ($S_u\%$) map directly to exact 2D rectangular surface area with zero overlaps, zero unallocated gaps, and zero duplicate border tiles.
+   - Supports selectable sub-grid matrix resolutions (**256, 512, 1024, or 2048 tiles**).
+   - Real-time zero-sum area sliders allow users to transfer territory area between accounts instantly.
+   - Ideal for value-weighted social metrics (donations, staking %, network owner ratings, influence scores).
 
-2. **OOMF Follower Network Mapping Mode (`discrete_1to1`)**:
+2. **1:1 Equal Discrete Mode (`discrete_1to1`)**:
    - Dynamically scales to map any arbitrary number $N$ of active accounts or OOMF follower connections (from $N = 1$ to $N = 2,000+$).
-   - Every single follower/account receives exactly 1 equal partition ($1/N$ of the globe surface).
-   - Small $N$: Large quadrant territories.
-   - Large $N$: High-density equal partition globe grid.
+   - Every single account receives exactly 1 equal partition ($1/N$ of the total map surface area).
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Frontend Framework**: React 18
+- **Frontend Framework**: React 18 (Functional Components, Custom Hooks)
 - **Language**: TypeScript (Strict Mode)
 - **Build Tool & Dev Server**: Vite 5
-- **3D Graphics Engine**: Three.js (`InstancedMesh`, `OrbitControls`, `Raycaster`, `CanvasTexture`, `PerspectiveCamera`, `MeshBasicMaterial`)
-- **Backend & Database**: Supabase (PostgreSQL + S3 Storage)
-- **Styling**: Tailwind CSS + Glassmorphism Theme
+- **2D & 3D Graphics Engines**:
+  - **2D Flat Map**: High-DPI HTML5 Canvas + Offscreen Texture Pipeline + Squarified Treemap Solver
+  - **3D Constellation**: Three.js (`THREE.InstancedMesh`, 6-DOF Fly Controls, Raycasting)
+- **Backend & Database**: Supabase (PostgreSQL + S3 Storage Buckets)
+- **Styling**: Tailwind CSS + Glassmorphism UI
 - **Icons**: Lucide React
-- **Code Quality**: ESLint + TypeScript (`tsc --noEmit`)
+- **Code Quality & Diagnostics**: ESLint + TypeScript (`tsc --noEmit`)
 
 ---
 
@@ -45,66 +46,61 @@ OOMFS ORG/
 │   ├── components/
 │   │   ├── AuthModal.tsx            # Glassmorphism tabbed login & account creation modal
 │   │   ├── UserMenu.tsx             # Top-right navigation avatar pill & dropdown widget
-│   │   ├── Header.tsx               # Frameless oomfs.org/{owner} top navigation bar & active-tab toggle router
-│   │   ├── MapCanvas.tsx            # Three.js 3D WebGL Canvas, lighting, orbit controls & raycasting
+│   │   ├── Header.tsx               # Frameless oomfs.org top navigation bar & router
+│   │   ├── FlatMapCanvas.tsx        # High-DPI 2D full-bleed responsive map canvas (pan/zoom/raycasting)
 │   │   ├── RightDockPanel.tsx       # Unified 3-Tab Control & Inspector Dock with View-Only Lock Banner
-│   │   ├── CodeGalaxyPage.tsx       # Network 3D Galaxy View HUD overlay, creator badges, & creation modal
+      ├── SphereStudioPage.tsx     # Full-bleed Territory Map Studio & Config Portal
+│   │   ├── CodeGalaxyPage.tsx       # Network 3D Galaxy View HUD overlay & creation modal
 │   │   ├── GalaxyCanvas.tsx         # Three.js 3D WebGL Galaxy starfield & InstancedMesh GPU pipeline
-│   │   ├── MemberProfilePage.tsx    # Page-sized account profile manager (bio, Twitter link, carousels, lightbox)
-│   │   └── SphereOwnerPage.tsx      # Sphere owner profile view
+│   │   ├── MemberProfilePage.tsx    # Page-sized account profile manager (bio, Twitter link, carousels)
+│   │   └── SphereOwnerPage.tsx      # Permanent Sphere Host profile view
 │   ├── types/
-│   │   ├── auth.ts                  # Auth interfaces: UserProfile, CarouselSection, CarouselItem, AuthModalMode
-│   │   └── map.ts                   # Core interfaces: UserAccount, Region, MapSettings, MapTheme, MappingMode, SphereItem
+│   │   ├── auth.ts                  # Auth interfaces: UserProfile, CarouselSection, CarouselItem
+│   │   └── map.ts                   # Core interfaces: UserAccount, Region, MapSettings, MapTheme, SphereItem
 │   ├── utils/
-│   │   ├── authService.ts           # Username & Password Auth service (Web Crypto SHA-256 + profile syncing)
-│   │   ├── partitionEngine.ts       # 3D Power-Distance Compact Tile Solver & 2D Texture Canvas Renderer
+│   │   ├── authService.ts           # Auth service & profile sync (SHA-256 + Supabase Auth)
+│   │   ├── partitionEngine.ts       # Squarified Treemap Partition Solver & 2D Canvas Texture Renderer
 │   │   ├── supabase.ts              # Supabase JS Client initialization
 │   │   ├── sphereService.ts         # Supabase DB & Storage API service handlers
 │   │   └── galaxyGenerator.ts       # Procedural 3D galaxy dataset generator
-│   ├── App.tsx                      # Root application state, auth subscription, & Supabase data sync
-│   ├── index.css                    # Tailwind CSS imports & custom glass-panel styles
+│   ├── App.tsx                      # Root application state, routing, & data sync
+│   ├── index.css                    # Tailwind CSS imports & custom styles
 │   └── main.tsx                     # React entry point
-├── docs/                            # Project Context Specifications & Architecture Docs
+├── docs/                            # Context Specifications & Architecture Documentation
 │   ├── pages/
-│   │   ├── 3D_SPHERE_MAP_PAGE.md    # 3D Sphere Map Specification
-│   │   ├── CODE_GALAXY_PAGE.md      # 3D Code Galaxy Constellation Specification
-│   │   ├── MEMBER_PROFILE_PAGE.md   # Member Account Profile Specification
+│   │   ├── 3D_SPHERE_MAP_PAGE.md    # 2D Territory Map Specification
+│   │   ├── SPHERE_STUDIO_PAGE.md    # Sphere Studio & Config Specification
+│   │   ├── CODE_GALAXY_PAGE.md      # 3D Code Galaxy Specification
+│   │   ├── MEMBER_PROFILE_PAGE.md   # Member Profile Specification
 │   │   └── SPHERE_OWNER_PAGE.md     # Sphere Owner Profile Specification
 │   ├── backend/
-│   │   ├── ACCOUNT_SYSTEM.md        # User Account System & Auth Architecture Specification
-│   │   └── SUPABASE_ARCHITECTURE.md # Supabase DB Schema, Storage & API Contracts
+│   │   ├── ACCOUNT_SYSTEM.md        # User Account System Specification
+│   │   └── SUPABASE_ARCHITECTURE.md # Supabase DB Schema & API Specification
 │   └── INDEX.md                     # Master Documentation Index & Sitemap
-├── public/                          # Static assets
-├── package.json                     # Project dependencies & npm scripts
+├── package.json                     # Dependencies & scripts
 ├── tsconfig.json                    # TypeScript configuration
 └── vite.config.ts                   # Vite build configuration
 ```
 
 ---
 
-## 💡 Key Architectural Decisions & Features
+## 💡 Key Architectural Decisions
 
-1. **User Account Engine & Profile Management ([ACCOUNT_SYSTEM.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/backend/ACCOUNT_SYSTEM.md))**:
-   - Direct Username + Password authentication backed by `public.profiles` in PostgreSQL and Web Crypto SHA-256 client-side hashing.
-   - Session state automatically persists across browser reloads via `localStorage` and custom cross-tab events.
-   - Dedicated **Member Profile Page** (`MemberProfilePage.tsx`) for user account management: customizable bio editor, Twitter/𝕏 handle linking, custom-titled media carousels with tightly packed native aspect ratio cards (`h-64 sm:h-72 w-auto object-cover`), uncropped image rendering, and a fullscreen lightbox viewer.
-   - Strict separation between registered account profiles (`UserProfile`) and 3D globe map partition tiles.
+1. **Squarified Treemap & Responsive Aspect Ratio Engine ([partitionEngine.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/partitionEngine.ts))**:
+   - Calculates 2D normalized user bounding rectangles (`rect2D: { x, y, w, h }`) using Bruls squarified treemap partitioning.
+   - Evaluates live container aspect ratio (`width / height`) to deliver full-bleed, responsive layouts on widescreen desktop displays (16:9, 21:9), tablets, and portrait mobile phones.
 
-2. **Sphere Ownership & View-Only Permission Model ([RightDockPanel.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/RightDockPanel.tsx))**:
-   - Creating a 3D sphere planet in Code Galaxy automatically attributes `ownerName` to `@` + `currentUser.username`.
-   - Spheres enforce a **`🔒 View-Only Mode`** lock banner for non-owners, disabling grid resolution, theme, seed, slider, and texture modifications while keeping the tile Inspector open for public browsing.
+2. **User Account Engine & Profile System ([ACCOUNT_SYSTEM.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/backend/ACCOUNT_SYSTEM.md))**:
+   - Authentication backed by `public.profiles` in Supabase PostgreSQL and SHA-256 password hashing.
+   - Dedicated **Member Profile Page** (`MemberProfilePage.tsx`) for user account management: bio editor, Twitter/𝕏 handle linking, custom-titled media carousels, uncropped image rendering, and fullscreen lightbox viewer.
 
-3. **3D Code Galaxy Constellation Engine ([GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx))**:
-   - Built using `THREE.InstancedMesh` to render thousands of 3D glowing sphere planet nodes in **3 WebGL draw calls**, delivering 60 FPS performance.
-   - Includes `/mine` preset command filter to isolate globes created by the logged-in user.
+3. **Territory Map Studio & View-Only Lock ([SphereStudioPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereStudioPage.tsx))**:
+   - Central administrative portal for creating, editing, and configuring territory maps.
+   - Includes real-time zero-sum sliders, allocation presets (Equalize, Pareto 80/20, Randomize), tile image uploads, and an embedded sticky 2D map preview canvas.
+   - Non-owners are placed in `View-Only Mode` with a lock banner, keeping settings browsable while protecting ownership control.
 
-4. **Live Supabase Backend Integration ([SUPABASE_ARCHITECTURE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/backend/SUPABASE_ARCHITECTURE.md))**:
-   - `public.profiles` table stores account handles, password hashes, bio, Twitter handle, avatar URL, and custom media carousels (JSONB).
-   - `public.spheres` table stores 3D sphere globe configurations, zero-sum slider target shares, and custom tile image URLs.
-   - `sphere-images` public storage bucket hosts uploaded tile texture images and member profile carousel media.
-
-5. **Unified Right Dock Panel ([RightDockPanel.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/RightDockPanel.tsx))**:
-   - Single collapsible dock panel with 3 tabs (`🌐 Config`, `📊 Allocator`, `🔍 Inspect`) for managing grid resolution, user counts, themes, zero-sum area sliders, and texture uploads.
+4. **3D Constellation Engine ([GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx))**:
+   - Built using `THREE.InstancedMesh` to render thousands of planet nodes in 3 WebGL draw calls, delivering 60 FPS performance.
 
 ---
 
@@ -127,7 +123,7 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 npm run dev
 ```
 
-### 4. Type Check & Build
+### 4. Type Check & Production Build
 ```bash
 npx tsc --noEmit
 npm run build
@@ -137,13 +133,10 @@ npm run build
 
 ## 🤖 Guidelines for AI & Human Developers
 
-1. **Preserve API Contracts**:
-   - `generateClusteredPartitions` in [partitionEngine.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/partitionEngine.ts) expects `(requestedTileCount, userCount, seed, theme, customUserShares, customUserImages, mappingMode)`.
-   - `updateSphereInSupabase` in [sphereService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/sphereService.ts) handles syncing sphere updates back to PostgreSQL.
-   - `updateUserProfile` in [authService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/authService.ts) handles syncing user account updates to `public.profiles`.
-
+1. **Preserve API & Data Contracts**:
+   - `generateClusteredPartitions` in [partitionEngine.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/partitionEngine.ts) expects `(requestedTileCount, userCount, seed, theme, customUserShares, customUserImages, mappingMode, aspectRatio)`.
+   - `updateSphereInSupabase` in [sphereService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/sphereService.ts) handles syncing map state to PostgreSQL.
 2. **Zero-Sum Slider Invariant**:
-   - In Conquest mode, dragging any area slider in [RightDockPanel.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/RightDockPanel.tsx) must preserve total share sum equal to $100\%$ across active accounts.
-
-3. **Galaxy Canvas Performance**:
-   - Maintain the `InstancedMesh` pipeline in [GalaxyCanvas.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/GalaxyCanvas.tsx) for all planet nodes and orbital wireframe rings to prevent CPU draw call bottlenecking.
+   - Dragging any area slider in Conquest mode must maintain total share sum equal to $100\%$ across active accounts.
+3. **Full-Bleed Aspect Ratio Responsiveness**:
+   - All map canvas renders should respect the container aspect ratio, adjusting `rect2D` layout for landscape or portrait viewports.

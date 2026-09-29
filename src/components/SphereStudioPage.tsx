@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { MapSettings, MapTheme, UserAccount, SphereItem, Region } from '../types/map';
 import { UserProfile } from '../types/auth';
-import { MapCanvas } from './MapCanvas';
+import { FlatMapCanvas } from './FlatMapCanvas';
 
 interface SphereStudioPageProps {
   spheres?: SphereItem[];
@@ -833,12 +833,12 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
 
           </div>
 
-          {/* RIGHT COLUMN (50%): Sticky Embedded Live 3D Globe Viewport Card */}
+          {/* RIGHT COLUMN (50%): Sticky Embedded Live 2D Map Viewport Card */}
           <div className="sticky top-6 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-4 sm:p-5 flex flex-col gap-4 h-[600px] lg:h-[680px] w-full">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-cyan-400 animate-spin-slow" />
-                <span className="font-extrabold text-sm text-white tracking-tight">Live 3D Globe Preview</span>
+                <Globe className="w-5 h-5 text-cyan-400" />
+                <span className="font-extrabold text-sm text-white tracking-tight">Live 2D Territory Map Preview</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs px-3 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold">
@@ -851,7 +851,7 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
             </div>
 
             <div className="relative flex-1 w-full h-full min-h-[420px] rounded-2xl overflow-hidden border border-zinc-800 bg-slate-950 shadow-inner">
-              <MapCanvas
+              <FlatMapCanvas
                 settings={settings}
                 users={users}
                 tiles={tiles}
@@ -861,13 +861,13 @@ export const SphereStudioPage: React.FC<SphereStudioPageProps> = ({
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1 pt-1 font-mono">
-              <span>Drag mouse to orbit • Scroll to zoom</span>
+              <span>Drag mouse to pan • Scroll to zoom</span>
               <button
                 onClick={onGoToMap}
                 className="text-white hover:text-cyan-400 font-bold flex items-center gap-1 transition-colors"
               >
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Full Screen 3D Map &rarr;</span>
+                <span>Full Screen 2D Map &rarr;</span>
               </button>
             </div>
           </div>
