@@ -32,3 +32,17 @@ export interface AuthState {
   error: string | null;
 }
 
+export interface FollowStats {
+  followerCount: number;
+  followingCount: number;
+}
+
+export interface FollowUserSummary {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  isFollowing?: boolean;
+}
+

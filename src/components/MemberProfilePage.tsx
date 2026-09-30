@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserProfile, CarouselSection, CarouselItem, AuthModalMode } from '../types/auth';
+import { UserProfile, CarouselSection, CarouselItem, AuthModalMode, FollowStats, FollowUserSummary } from '../types/auth';
 import { fetchUserProfileByUsername, updateUserProfile } from '../utils/authService';
 import { uploadTileImageToSupabase } from '../utils/sphereService';
+import {
+  followUser,
+  unfollowUser,
+  checkIsFollowing,
+  fetchFollowStats,
+  fetchFollowersList,
+  fetchFollowingList,
+} from '../utils/followService';
 import {
   ArrowRight,
   ImagePlus,
@@ -19,6 +27,9 @@ import {
   LogIn,
   LogOut,
   UserPlus,
+  UserX,
+  Users,
+  Search,
   Globe,
 } from 'lucide-react';
 
@@ -29,6 +40,7 @@ interface MemberProfilePageProps {
   onOpenSphereStudio?: () => void;
   onOpenAuthModal?: (mode: AuthModalMode) => void;
   onSignOut?: () => void;
+  onSelectUser?: (username: string) => void;
 }
 
 export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
@@ -38,6 +50,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   onOpenSphereStudio,
   onOpenAuthModal,
   onSignOut,
+  onSelectUser,
 }) => {
   const effectiveUsername = targetUsername || currentUser?.username || 'oprah';
   const cleanHandle = effectiveUsername.replace(/^@/, '').toLowerCase().replace(/\s+/g, '-');
@@ -73,6 +86,18 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
 
+  // Follow system state
+  const [followStats, setFollowStats] = useState<FollowStats>({ followerCount: 0, followingCount: 0 });
+  const [isFollowingState, setIsFollowingState] = useState<boolean>(false);
+  const [isFollowLoading, setIsFollowLoading] = useState<boolean>(false);
+  const [isHoveringUnfollow, setIsHoveringUnfollow] = useState<boolean>(false);
+
+  // Follow modal state
+  const [activeFollowModalTab, setActiveFollowModalTab] = useState<'followers' | 'following' | null>(null);
+  const [followModalList, setFollowModalList] = useState<FollowUserSummary[]>([]);
+  const [isModalLoading, setIsModalLoading] = useState<boolean>(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState<string>('');
+
   const handleUploadBannerFile = async (file: File) => {
     if (!currentUser || !isOwnProfile) return;
     setIsUploadingBanner(true);
@@ -89,7 +114,7 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
     }
   };
 
-  // Sync profile state when currentUser or targetUsername prop changes
+  // Sync profile state and follow details when currentUser or targetUsername prop changes
   useEffect(() => {
     let isMounted = true;
     async function loadProfile() {
@@ -106,11 +131,17 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
       }
 
       const fetched = await fetchUserProfileByUsername(cleanHandleToFetch);
-      if (isMounted && fetched) {
-        setProfile(fetched);
-        setBioInput(fetched.bio || '');
-        setTwitterInput(fetched.twitterHandle || '');
-        setCarousels(fetched.carousels || []);
+      if (isMounted) {
+        const activeProfile: UserProfile = fetched || {
+          id: cleanHandleToFetch,
+          username: cleanHandleToFetch,
+          displayName: `@${cleanHandleToFetch}`,
+          createdAt: new Date().toISOString(),
+        };
+        setProfile(activeProfile);
+        setBioInput(activeProfile.bio || '');
+        setTwitterInput(activeProfile.twitterHandle || '');
+        setCarousels(activeProfile.carousels || []);
       }
     }
 
@@ -120,6 +151,154 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
       isMounted = false;
     };
   }, [currentUser, targetUsername, isOwnProfile]);
+
+  // Sync follow stats & follow status for the current active profile
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFollowData() {
+      const targetHandle = profile?.username || cleanHandle;
+      if (!targetHandle) return;
+
+      // 1. Fetch Stats
+      const stats = await fetchFollowStats(targetHandle);
+      if (isMounted) {
+        setFollowStats(stats);
+      }
+
+      // 2. Fetch isFollowing check if currentUser is viewing someone else's profile
+      const currentHandle = currentUser?.username;
+      if (currentHandle && !isOwnProfile) {
+        const following = await checkIsFollowing(currentHandle, targetHandle);
+        if (isMounted) {
+          setIsFollowingState(following);
+        }
+      } else {
+        if (isMounted) {
+          setIsFollowingState(false);
+        }
+      }
+    }
+
+    loadFollowData();
+
+    window.addEventListener('oomfs-follow-change', loadFollowData);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('oomfs-follow-change', loadFollowData);
+    };
+  }, [profile, currentUser, cleanHandle, isOwnProfile]);
+
+  // Follow/Unfollow toggle handler for profile hero
+  const handleToggleFollow = async () => {
+    if (!currentUser) {
+      if (onOpenAuthModal) onOpenAuthModal('login');
+      return;
+    }
+
+    const targetHandle = profile?.username || cleanHandle;
+    const currentHandle = currentUser?.username;
+
+    if (!targetHandle || !currentHandle || isOwnProfile || isFollowLoading) return;
+
+    setIsFollowLoading(true);
+    const willFollow = !isFollowingState;
+
+    // Optimistic UI updates
+    setIsFollowingState(willFollow);
+    setFollowStats(prev => ({
+      ...prev,
+      followerCount: willFollow ? prev.followerCount + 1 : Math.max(0, prev.followerCount - 1),
+    }));
+
+    try {
+      if (willFollow) {
+        await followUser(currentHandle, targetHandle);
+      } else {
+        await unfollowUser(currentHandle, targetHandle);
+      }
+      const updatedStats = await fetchFollowStats(targetHandle);
+      setFollowStats(updatedStats);
+    } catch (err) {
+      console.error('Failed to toggle follow:', err);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  // Open Followers/Following Modal Handler
+  const handleOpenFollowModal = async (tab: 'followers' | 'following') => {
+    const targetHandle = profile?.username || cleanHandle;
+    if (!targetHandle) return;
+
+    setActiveFollowModalTab(tab);
+    setIsModalLoading(true);
+    setModalSearchQuery('');
+
+    try {
+      const list = tab === 'followers'
+        ? await fetchFollowersList(targetHandle, currentUser?.username)
+        : await fetchFollowingList(targetHandle, currentUser?.username);
+      setFollowModalList(list);
+    } catch (err) {
+      console.error(`Failed to fetch ${tab} list:`, err);
+      setFollowModalList([]);
+    } finally {
+      setIsModalLoading(false);
+    }
+  };
+
+  // Switch tabs inside modal handler
+  const handleSwitchModalTab = async (tab: 'followers' | 'following') => {
+    const targetHandle = profile?.username || cleanHandle;
+    if (!targetHandle || activeFollowModalTab === tab) return;
+
+    setActiveFollowModalTab(tab);
+    setIsModalLoading(true);
+    setModalSearchQuery('');
+
+    try {
+      const list = tab === 'followers'
+        ? await fetchFollowersList(targetHandle, currentUser?.username)
+        : await fetchFollowingList(targetHandle, currentUser?.username);
+      setFollowModalList(list);
+    } catch (err) {
+      console.error(`Failed to fetch ${tab} list:`, err);
+      setFollowModalList([]);
+    } finally {
+      setIsModalLoading(false);
+    }
+  };
+
+  // Inline toggle follow state inside modal list
+  const handleToggleModalItemFollow = async (targetUser: FollowUserSummary) => {
+    if (!currentUser) {
+      if (onOpenAuthModal) onOpenAuthModal('login');
+      return;
+    }
+    const currentHandle = currentUser.username;
+    const targetHandle = targetUser.username;
+    const willFollow = !targetUser.isFollowing;
+
+    setFollowModalList(prev =>
+      prev.map(u => (u.id === targetUser.id ? { ...u, isFollowing: willFollow } : u))
+    );
+
+    try {
+      if (willFollow) {
+        await followUser(currentHandle, targetHandle);
+      } else {
+        await unfollowUser(currentHandle, targetHandle);
+      }
+      const activeTargetHandle = profile?.username || cleanHandle;
+      if (activeTargetHandle) {
+        const updatedStats = await fetchFollowStats(activeTargetHandle);
+        setFollowStats(updatedStats);
+      }
+    } catch (err) {
+      console.error('Failed to toggle follow in modal:', err);
+    }
+  };
 
   // Save bio handler
   const handleSaveBio = async () => {
@@ -354,6 +533,42 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
 
             {/* Action Buttons Aligned Right */}
             <div className="flex items-center gap-2 flex-wrap justify-end pt-3">
+              {!isOwnProfile && (
+                <button
+                  onClick={handleToggleFollow}
+                  onMouseEnter={() => setIsHoveringUnfollow(true)}
+                  onMouseLeave={() => setIsHoveringUnfollow(false)}
+                  disabled={isFollowLoading}
+                  className={`px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 transition-all shadow-md ${
+                    isFollowingState
+                      ? isHoveringUnfollow
+                        ? 'bg-rose-950/90 text-rose-300 border border-rose-700/80 shadow-rose-900/20'
+                        : 'bg-slate-900 text-slate-200 border border-slate-700 hover:border-slate-600'
+                      : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/20 font-black'
+                  }`}
+                >
+                  {isFollowLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                  ) : isFollowingState ? (
+                    isHoveringUnfollow ? (
+                      <>
+                        <UserX className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Unfollow</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Following</span>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Follow</span>
+                    </>
+                  )}
+                </button>
+              )}
               {isOwnProfile && onOpenSphereStudio && (
                 <button
                   onClick={onOpenSphereStudio}
@@ -409,6 +624,28 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
                   </a>
                 </>
               )}
+            </div>
+
+            {/* Followers & Following Counts (X/Twitter Style) */}
+            <div className="flex items-center gap-4 mt-3 text-xs sm:text-sm text-slate-400">
+              <button
+                onClick={() => handleOpenFollowModal('following')}
+                className="hover:underline flex items-center gap-1.5 group cursor-pointer"
+              >
+                <span className="font-extrabold text-white group-hover:text-cyan-400 transition-colors">
+                  {followStats.followingCount.toLocaleString()}
+                </span>
+                <span className="text-slate-400 font-medium">Following</span>
+              </button>
+              <button
+                onClick={() => handleOpenFollowModal('followers')}
+                className="hover:underline flex items-center gap-1.5 group cursor-pointer"
+              >
+                <span className="font-extrabold text-white group-hover:text-cyan-400 transition-colors">
+                  {followStats.followerCount.toLocaleString()}
+                </span>
+                <span className="text-slate-400 font-medium">Followers</span>
+              </button>
             </div>
           </div>
         </div>
@@ -578,9 +815,167 @@ export const MemberProfilePage: React.FC<MemberProfilePageProps> = ({
           />
         </div>
       )}
+
+      {/* Followers / Following List Modal */}
+      {activeFollowModalTab && (
+        <div
+          onClick={() => setActiveFollowModalTab(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-slate-950 border border-slate-800 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+          >
+            {/* Modal Header & Tabs */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleSwitchModalTab('followers')}
+                  className={`text-sm font-bold pb-1 relative transition-colors ${
+                    activeFollowModalTab === 'followers'
+                      ? 'text-white border-b-2 border-cyan-400'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Followers ({followStats.followerCount})
+                </button>
+                <button
+                  onClick={() => handleSwitchModalTab('following')}
+                  className={`text-sm font-bold pb-1 relative transition-colors ${
+                    activeFollowModalTab === 'following'
+                      ? 'text-white border-b-2 border-cyan-400'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Following ({followStats.followingCount})
+                </button>
+              </div>
+
+              <button
+                onClick={() => setActiveFollowModalTab(null)}
+                className="p-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search Bar Input */}
+            <div className="px-5 py-3 border-b border-slate-800/80 bg-slate-900/40">
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3.5" />
+                <input
+                  type="text"
+                  value={modalSearchQuery}
+                  onChange={e => setModalSearchQuery(e.target.value)}
+                  placeholder="Search accounts..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Modal User List */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[250px]">
+              {isModalLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
+                  <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+                  <span className="text-xs font-mono">Loading accounts...</span>
+                </div>
+              ) : (
+                (() => {
+                  const filteredModalList = followModalList.filter(
+                    u =>
+                      u.username.toLowerCase().includes(modalSearchQuery.toLowerCase()) ||
+                      (u.displayName && u.displayName.toLowerCase().includes(modalSearchQuery.toLowerCase()))
+                  );
+
+                  if (filteredModalList.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 gap-2">
+                        <Users className="w-8 h-8 text-slate-600" />
+                        <p className="text-xs font-medium">
+                          {modalSearchQuery.trim()
+                            ? 'No accounts match your search.'
+                            : activeFollowModalTab === 'followers'
+                            ? 'No followers yet.'
+                            : 'Not following anyone yet.'}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return filteredModalList.map(userItem => (
+                    <div
+                      key={userItem.id}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-800/60 hover:border-slate-700/80 transition-all gap-3"
+                    >
+                      <div
+                        onClick={() => {
+                          setActiveFollowModalTab(null);
+                          if (onSelectUser) {
+                            onSelectUser(userItem.username);
+                          }
+                          if (typeof window !== 'undefined') {
+                            window.history.pushState({}, '', `?u=${userItem.username}`);
+                            window.dispatchEvent(new Event('popstate'));
+                          }
+                        }}
+                        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                      >
+                        {userItem.avatarUrl ? (
+                          <img
+                            src={userItem.avatarUrl}
+                            alt={userItem.username}
+                            className="w-10 h-10 rounded-full object-cover bg-slate-800 ring-1 ring-slate-700"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center font-bold text-white text-sm uppercase ring-1 ring-slate-700">
+                            {userItem.username.charAt(0)}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-white truncate hover:underline">
+                            {userItem.displayName || `@${userItem.username}`}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400 truncate">
+                            @{userItem.username}
+                          </span>
+                          {userItem.bio && (
+                            <span className="text-[11px] text-slate-400 line-clamp-1 mt-0.5 font-normal">
+                              {userItem.bio}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Inline Follow / Unfollow toggle button for list item */}
+                      {currentUser && currentUser.id !== userItem.id && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleToggleModalItemFollow(userItem);
+                          }}
+                          className={`px-3 py-1.5 rounded-full font-bold text-[11px] transition-all flex-shrink-0 ${
+                            userItem.isFollowing
+                              ? 'bg-slate-900 text-slate-300 border border-slate-700 hover:border-rose-800 hover:text-rose-300'
+                              : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black shadow-sm'
+                          }`}
+                        >
+                          {userItem.isFollowing ? 'Following' : 'Follow'}
+                        </button>
+                      )}
+                    </div>
+                  ));
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 interface CarouselRowProps {
   carousel: CarouselSection;

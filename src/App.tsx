@@ -28,6 +28,9 @@ export const App: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('login');
 
+  // Currently viewed user profile handle (when navigating between profiles)
+  const [viewingProfileUsername, setViewingProfileUsername] = useState<string | null>(null);
+
   // Spheres Collection State (Live from Supabase)
   const [spheres, setSpheres] = useState<SphereItem[]>([]);
   const [activeSphereId, setActiveSphereId] = useState<string>('sphere-genesis');
@@ -159,6 +162,11 @@ export const App: React.FC = () => {
     } catch (err) {
       console.error('Sign out error:', err);
     }
+  }, []);
+
+  const handleSelectTab = useCallback((tab: NavigationTab) => {
+    setViewingProfileUsername(null);
+    setActiveTab(tab);
   }, []);
 
   const activeSphere = useMemo(
@@ -318,12 +326,14 @@ export const App: React.FC = () => {
   }, []);
 
   const handleViewMyProfile = useCallback(() => {
+    setViewingProfileUsername(null);
     if (!currentUser) {
       handleOpenAuthModal('login');
       return;
     }
     setActiveTab('member');
   }, [currentUser, handleOpenAuthModal]);
+
 
   // Weight Presets (for active user accounts)
   const handleEqualizeShares = useCallback(() => {
@@ -384,7 +394,7 @@ export const App: React.FC = () => {
       {activeTab !== 'studio' && (
         <Header
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={handleSelectTab}
           user={currentUser}
           activeSphereOwnerName={activeSphere?.ownerName}
           onOpenAuthModal={handleOpenAuthModal}
@@ -460,11 +470,15 @@ export const App: React.FC = () => {
         <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1] pointer-events-auto">
           <MemberProfilePage
             currentUser={currentUser}
-            targetUsername={activeSphere?.ownerName || 'oprah'}
-            onGoToMap={() => setActiveTab('map')}
+            targetUsername={viewingProfileUsername || activeSphere?.ownerName || 'oprah'}
+            onGoToMap={() => {
+              setViewingProfileUsername(null);
+              setActiveTab('map');
+            }}
             onOpenSphereStudio={() => setActiveTab('studio')}
             onOpenAuthModal={handleOpenAuthModal}
             onSignOut={handleSignOut}
+            onSelectUser={(u) => setViewingProfileUsername(u)}
           />
         </div>
       )}
@@ -474,11 +488,15 @@ export const App: React.FC = () => {
         <div className="fixed inset-0 z-30 w-full h-full overflow-y-auto bg-gradient-to-b from-[#0c4a6e] via-[#0284c7] to-[#0369a1] pointer-events-auto">
           <MemberProfilePage
             currentUser={currentUser}
-            targetUsername={currentUser?.username}
-            onGoToMap={() => setActiveTab('map')}
+            targetUsername={viewingProfileUsername || currentUser?.username}
+            onGoToMap={() => {
+              setViewingProfileUsername(null);
+              setActiveTab('map');
+            }}
             onOpenSphereStudio={() => setActiveTab('studio')}
             onOpenAuthModal={handleOpenAuthModal}
             onSignOut={handleSignOut}
+            onSelectUser={(u) => setViewingProfileUsername(u)}
           />
         </div>
       )}

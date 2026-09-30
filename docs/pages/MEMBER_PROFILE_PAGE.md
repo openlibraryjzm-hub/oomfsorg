@@ -52,6 +52,7 @@ interface MemberProfilePageProps {
 | **Banner (HD 1500x500)** | `string` (URL) | High-res cover banner header from `public.profiles.banner_url` (`profile_banner_url` + `/1500x500`) |
 | **Twitter / 𝕏 Handle** | `string` | Link to `x.com/handle` stored in `public.profiles.twitter_handle` |
 | **Bio** | `string` | Customizable markdown/text bio stored in `public.profiles.bio` |
+| **Followers / Following Counts** | `FollowStats` | Exact follower and following totals from `public.follows` (`followerCount`, `followingCount`) |
 | **Media Carousels** | `CarouselSection[]` | Array of sections (`{ id, title, items: [{ id, url, caption }] }`) stored in `public.profiles.carousels` (JSONB) |
 
 ---
@@ -60,11 +61,17 @@ interface MemberProfilePageProps {
 
 1. **Twitter / 𝕏 Dark Slate Theme**: Clean dark background (`bg-slate-950`) with bordered profile container (`max-w-4xl border-x border-slate-800`).
 2. **1500x500 HD Cover Banner**: Full-width header banner displaying HD cover photo or gradient fallback.
-3. **Overlapping 400x400 Avatar**: Round profile image overlapping bottom edge of cover banner.
-4. **Tightly-Packed Native Aspect Ratio Cards**:
+3. **Overlapping 400x400 Avatar & X-Style Action Bar**:
+   - Round profile image overlapping bottom edge of cover banner.
+   - Dynamic **Follow / Following / Unfollow** action button when viewing other user profiles.
+   - **X/Twitter Signature Unfollow State**: "Following" button switches to red "Unfollow" badge on hover.
+4. **Followers & Following Stats & Tabbed Modal**:
+   - Interactive count badges (`X Following`, `Y Followers`).
+   - Clicking counts opens an overlay modal with tabbed **Followers** and **Following** user lists, search bar, avatar navigation, and inline follow toggles.
+5. **Tightly-Packed Native Aspect Ratio Cards**:
    - Images in carousels retain their natural aspect ratios (square, panoramic widescreen, tall portrait) without forced square cropping.
    - Rendered as tightly-packed horizontal scroll tracks with container height constraints (`h-64 sm:h-72 w-auto object-cover`).
-5. **Fullscreen Lightbox Viewer**: Clicking any carousel card launches a dark backdrop fullscreen modal displaying the high-resolution uncropped image.
+6. **Fullscreen Lightbox Viewer**: Clicking any carousel card launches a dark backdrop fullscreen modal displaying the high-resolution uncropped image.
 
 ---
 

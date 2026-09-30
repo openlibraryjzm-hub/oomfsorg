@@ -47,8 +47,10 @@ Read the dedicated context specs below for full component contracts, state flow,
 | **2D Knowledge Graph (Code Galaxy)** | [CodeGalaxyPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/CodeGalaxyPage.tsx) | Network-level 2D Knowledge Graph view ($N=2,500+$ sphere nodes). Features double-click map entry and minimalist `"/spherename"` cursor hover labels. See [CODE_GALAXY_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/CODE_GALAXY_PAGE.md). |
 | **Sphere Owner Profile** | [SphereOwnerPage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/SphereOwnerPage.tsx) | Dedicated profile page for the permanent Sphere Host (`@oomf_architect`, master node anchor). See [SPHERE_OWNER_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/SPHERE_OWNER_PAGE.md). |
 | **Member Profile** | [MemberProfilePage.tsx](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/components/MemberProfilePage.tsx) | Account profile manager floating over full-bleed sky atmosphere. Bio editor, Twitter/𝕏 handle linking, custom media carousels, and image lightbox. See [MEMBER_PROFILE_PAGE.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/pages/MEMBER_PROFILE_PAGE.md). |
+| **Follower & Following System** | [followService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/followService.ts) | Directional relationship engine, Supabase `public.follows` schema, atomic relational joins, optimistic local cache, and tabbed modal. See [FOLLOW_SYSTEM.md](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/docs/backend/FOLLOW_SYSTEM.md). |
 
 ---
+
 
 ## 🛠 Critical Code Invariants for AI Agents
 

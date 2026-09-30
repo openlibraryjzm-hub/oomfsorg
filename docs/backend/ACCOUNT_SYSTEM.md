@@ -43,6 +43,30 @@ The application manages account sessions strictly through service functions defi
 
 ---
 
+## 🗄 Database Schema: `public.follows`
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `uuid` | Primary Key, `DEFAULT gen_random_uuid()` | Follow relationship record identifier |
+| `follower_id` | `uuid` | `REFERENCES public.profiles(id) ON DELETE CASCADE` | User account initiating the follow |
+| `following_id` | `uuid` | `REFERENCES public.profiles(id) ON DELETE CASCADE` | User account being followed |
+| `created_at` | `timestamptz` | `DEFAULT now() NOT NULL` | Timestamp follow action occurred |
+
+> Unique Constraint: `(follower_id, following_id)` prevents duplicate follow relationships.
+
+---
+
+## 🛠 Follow Service API Contracts ([followService.ts](file:///c:/Users/GGPC/Desktop/OOMFS%20ORG/src/utils/followService.ts))
+
+- **`followUser(followerId, followingId)`**: Inserts follow relationship into `public.follows` with local fallback.
+- **`unfollowUser(followerId, followingId)`**: Removes follow relationship from `public.follows`.
+- **`checkIsFollowing(followerId, followingId)`**: Queries if user A follows user B.
+- **`fetchFollowStats(userId)`**: Returns exact count `{ followerCount, followingCount }`.
+- **`fetchFollowersList(targetUserId, currentUserId)`**: Returns list of follower user profiles enriched with `isFollowing` status relative to current user.
+- **`fetchFollowingList(targetUserId, currentUserId)`**: Returns list of following user profiles enriched with `isFollowing` status relative to current user.
+
+---
+
 ## 🔒 Sphere Ownership & Account Model
 
 1. **First-Time Single Auto-Sphere**: Spawns `@username` on initial signup.
